@@ -1,0 +1,17 @@
+export default {
+  transparent: "transparent",
+  black: "#000",
+  textGray: "rgba(0, 0, 0, 0.5)",
+  white: "#FFF",
+  primary: "#1B67EE",
+  lightBlue: "#dbe9ff",
+  buttonGrey: "#F3F4F7",
+  midGray: "#bdbdbf",
+  lightGray: "#F4F4F4",
+  placeholder: "#00000066",
+  error: "#EC4D69",
+  red: "#EC3626",
+  lightRed: "#ffe1e1",
+  purple: "#9a15fa",
+  lightPurple: "#faf5ff",
+};
