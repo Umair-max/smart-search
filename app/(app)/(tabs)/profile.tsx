@@ -4,26 +4,84 @@ import colors from "@/config/colors";
 import { radius, spacingX, spacingY } from "@/config/spacing";
 import useAlertStore from "@/store/alertStore";
 import { useAuthStore } from "@/store/authStore";
+import useSuppliesStore from "@/store/suppliesStore";
+import ExcelImportService from "@/utils/excelImport";
 import { normalizeY } from "@/utils/normalize";
-import { Octicons } from "@expo/vector-icons";
+import {
+  AntDesign,
+  FontAwesome6,
+  Ionicons,
+  Octicons,
+} from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import { Icon, SignOutIcon } from "phosphor-react-native";
 import React from "react";
-import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Alert, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 interface RowProps {
-  icon: Icon;
+  icon: any;
   title: string;
   iconColor: string;
   index: number;
   onPress?: () => void;
+  isLoading?: boolean;
 }
 
 function ProfileScreen() {
   const { setAlertVisible, setOnConfirm } = useAlertStore();
   const { user, logoutUser, loading } = useAuthStore();
+  const { addSupplies, setLoading, isLoading, getTotalCount } =
+    useSuppliesStore();
+
+  const handleImportSupplies = async () => {
+    try {
+      setLoading(true);
+
+      Alert.alert(
+        "Import Excel File",
+        `Please select an Excel file (.xlsx, .xls) with columns:\n\n${ExcelImportService.getSampleFormat().join(
+          "\n"
+        )}\n\nRequired fields are marked with *`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Choose File",
+            onPress: async () => {
+              const result = await ExcelImportService.importFromExcel();
+              console.log("Import result:", result);
+              if (result.success && result.data) {
+                addSupplies(result.data);
+                Alert.alert(
+                  "Import Successful!",
+                  `Successfully imported ${
+                    result.count
+                  } supplies.\n\nTotal supplies in store: ${
+                    getTotalCount() + (result.count || 0)
+                  }`,
+                  [{ text: "OK" }]
+                );
+              } else {
+                Alert.alert(
+                  "Import Failed",
+                  result.error || "Unknown error occurred",
+                  [{ text: "OK" }]
+                );
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      Alert.alert(
+        "Import Error",
+        "An unexpected error occurred during import",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     setAlertVisible({
@@ -37,27 +95,6 @@ function ProfileScreen() {
     });
   };
 
-  const Row = ({ icon: Icon, title, iconColor, index, onPress }: RowProps) => {
-    return (
-      <TouchableOpacity onPress={onPress}>
-        <Animated.View style={styles.row}>
-          <View
-            style={{
-              backgroundColor: iconColor,
-              padding: spacingY._10,
-              borderRadius: radius._12,
-            }}
-          >
-            <Icon />
-          </View>
-          <Typo size={16} style={{ fontWeight: "500", flex: 1 }}>
-            {title}
-          </Typo>
-          <Octicons name="chevron-right" size={24} color="black" />
-        </Animated.View>
-      </TouchableOpacity>
-    );
-  };
   return (
     <ScreenComponent style={styles.container}>
       <BlurView
@@ -82,19 +119,91 @@ function ProfileScreen() {
           </Typo>
         </View>
       </View>
-      <View style={{ flex: 1 }}></View>
-      <View style={[styles.bottomContainer, { marginBottom: "35%" }]}>
-        <Row
-          title={"Log out"}
-          iconColor={"#d1d1d1"}
-          icon={SignOutIcon}
-          index={5}
-          onPress={handleLogout}
-        />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "space-between",
+          marginBottom: "35%",
+        }}
+      >
+        <View style={styles.bottomContainer}>
+          <Row
+            title={`Import Supplies ${
+              getTotalCount() > 0 ? `(${getTotalCount()} imported)` : ""
+            }`}
+            iconColor={colors.lightPrimary}
+            icon={<FontAwesome6 name="file-import" size={24} color="black" />}
+            index={0}
+            onPress={handleImportSupplies}
+            isLoading={isLoading}
+          />
+          <Row
+            title={"Manage Permissions"}
+            iconColor={colors.lightPrimary}
+            icon={<Ionicons name="people" size={24} color={"black"} />}
+            index={2}
+          />
+        </View>
+        <View style={styles.bottomContainer}>
+          <Row
+            title={"Log out"}
+            iconColor={"#fbdbe6"}
+            icon={<AntDesign name="logout" size={24} color="black" />}
+            index={5}
+            onPress={handleLogout}
+          />
+        </View>
       </View>
     </ScreenComponent>
   );
 }
+
+const Row = ({
+  icon,
+  title,
+  iconColor,
+  onPress,
+  isLoading = false,
+}: RowProps) => {
+  return (
+    <TouchableOpacity onPress={onPress} disabled={isLoading}>
+      <Animated.View style={[styles.row, isLoading && styles.disabledRow]}>
+        <View
+          style={{
+            backgroundColor: iconColor,
+            padding: spacingY._10,
+            borderRadius: radius._12,
+          }}
+        >
+          {isLoading ? (
+            <Ionicons name="hourglass-outline" size={24} color="gray" />
+          ) : (
+            icon
+          )}
+        </View>
+        <Typo
+          size={16}
+          style={{
+            fontWeight: "500",
+            flex: 1,
+            color: isLoading ? colors.textGray : colors.black,
+          }}
+        >
+          {title}
+        </Typo>
+        {isLoading ? (
+          <Ionicons
+            name="hourglass-outline"
+            size={24}
+            color={colors.textGray}
+          />
+        ) : (
+          <Octicons name="chevron-right" size={24} color="black" />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -113,7 +222,7 @@ const styles = StyleSheet.create({
     marginBottom: normalizeY(25),
     alignItems: "center",
     gap: spacingX._10,
-    marginTop: "20%",
+    marginTop: "15%",
   },
   img: {
     height: normalizeY(110),
@@ -131,6 +240,9 @@ const styles = StyleSheet.create({
     gap: spacingX._10,
     paddingVertical: spacingY._10,
     paddingRight: spacingX._5,
+  },
+  disabledRow: {
+    opacity: 0.6,
   },
   line: {
     height: 0.8,

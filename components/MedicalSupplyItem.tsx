@@ -135,6 +135,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacingY._8,
     flexWrap: "wrap",
+    gap: spacingY._10,
   },
   codeContainer: {
     backgroundColor: colors.lightBlue,
@@ -142,7 +143,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacingY._4,
     borderRadius: radius._6,
     flex: 1,
-    marginRight: spacingX._7,
     minWidth: 100,
   },
   codeText: {
@@ -154,7 +154,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacingX._7,
     paddingVertical: spacingY._4,
     borderRadius: radius._6,
-    marginRight: spacingX._7,
   },
   categoryText: {
     color: colors.purple,

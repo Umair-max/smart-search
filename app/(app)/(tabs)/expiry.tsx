@@ -6,32 +6,52 @@ import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { MedicalSupplies } from "@/config/data";
 import { spacingX, spacingY } from "@/config/spacing";
-import React, { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import PagerView from "react-native-pager-view";
 
 function Expiry() {
   const [selected, setSelected] = useState<EnumOrderTab>(EnumOrderTab.EXPIRED);
+  const pagerRef = useRef<PagerView>(null);
 
-  const getIsExpired = (
-    item: MedicalSupply,
-    checkExpired: boolean = true
-  ): boolean => {
-    const hash =
-      item.ProductCode.charCodeAt(0) + item.ProductCode.charCodeAt(1);
-    return checkExpired ? hash % 3 === 0 : hash % 3 === 1;
+  const getIsExpired = (item: MedicalSupply): boolean => {
+    const hash = item.ProductCode.split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash) % 5 < 2;
+  };
+
+  const getIsNearExpiry = (item: MedicalSupply): boolean => {
+    const hash = item.ProductDescription.split("").reduce((a, b) => {
+      a = (a << 3) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash) % 3 === 0;
   };
 
   const expiredItems = useMemo(() => {
-    return MedicalSupplies.filter((item) => getIsExpired(item, true));
+    return MedicalSupplies.filter((item) => getIsExpired(item));
   }, []);
 
   const nearExpiryItems = useMemo(() => {
-    return MedicalSupplies.filter((item) => getIsExpired(item, false));
+    return MedicalSupplies.filter(
+      (item) => !getIsExpired(item) && getIsNearExpiry(item)
+    );
   }, []);
 
-  const currentData =
-    selected === EnumOrderTab.EXPIRED ? expiredItems : nearExpiryItems;
-  const isExpired = selected === EnumOrderTab.EXPIRED;
+  const handleTabChange = (tab: EnumOrderTab) => {
+    const pageIndex = tab === EnumOrderTab.EXPIRED ? 0 : 1;
+    setSelected(tab);
+    pagerRef.current?.setPage(pageIndex);
+  };
+
+  const handlePageSelected = (e: any) => {
+    const { position } = e.nativeEvent;
+    const newTab =
+      position === 0 ? EnumOrderTab.EXPIRED : EnumOrderTab.NEAREXPIRY;
+    setSelected(newTab);
+  };
 
   const handleItemPress = (item: MedicalSupply) => {
     console.log("Expiry item pressed:", item.ProductCode);
@@ -48,7 +68,7 @@ function Expiry() {
         </Typo>
       </View>
 
-      <ExpiryTabs selected={selected} setSelected={setSelected} />
+      <ExpiryTabs selected={selected} setSelected={handleTabChange} />
 
       <View style={styles.statsContainer}>
         <View
@@ -82,20 +102,35 @@ function Expiry() {
         </View>
       </View>
 
-      <View style={styles.contentContainer}>
-        <MedicalSupplyList
-          data={currentData}
-          onItemPress={handleItemPress}
-          showExpiryStatus={true}
-          getIsExpired={() => isExpired}
-          emptyTitle={isExpired ? "No expired items" : "No items near expiry"}
-          emptySubtitle={
-            isExpired
-              ? "All items are within their expiry dates"
-              : "All items have sufficient time remaining"
-          }
-        />
-      </View>
+      <PagerView
+        ref={pagerRef}
+        style={styles.pagerView}
+        initialPage={0}
+        onPageSelected={handlePageSelected}
+        scrollEnabled={true}
+      >
+        <View key="expired" style={styles.pageContainer}>
+          <MedicalSupplyList
+            data={expiredItems}
+            onItemPress={handleItemPress}
+            showExpiryStatus={true}
+            getIsExpired={() => true}
+            emptyTitle="No expired items"
+            emptySubtitle="All items are within their expiry dates"
+          />
+        </View>
+
+        <View key="nearExpiry" style={styles.pageContainer}>
+          <MedicalSupplyList
+            data={nearExpiryItems}
+            onItemPress={handleItemPress}
+            showExpiryStatus={true}
+            getIsExpired={() => false}
+            emptyTitle="No items near expiry"
+            emptySubtitle="All items have sufficient time remaining"
+          />
+        </View>
+      </PagerView>
     </ScreenComponent>
   );
 }
@@ -152,7 +187,10 @@ const styles = StyleSheet.create({
     color: colors.textGray,
     textAlign: "center",
   },
-  contentContainer: {
+  pagerView: {
+    flex: 1,
+  },
+  pageContainer: {
     flex: 1,
   },
 });

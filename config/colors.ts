@@ -5,6 +5,7 @@ export default {
   white: "#FFF",
   secondry: "#166eaa",
   primary: "#3dbac9",
+  lightPrimary: "rgba(61, 186, 201, 0.5)",
   lightBlue: "#dbe9ff",
   buttonGrey: "#F3F4F7",
   midGray: "#bdbdbf",

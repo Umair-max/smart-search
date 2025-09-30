@@ -5,6 +5,7 @@ import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { MedicalSupplies } from "@/config/data";
 import { radius, spacingX, spacingY } from "@/config/spacing";
+import useSuppliesStore from "@/store/suppliesStore";
 import { normalizeY } from "@/utils/normalize";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -12,28 +13,41 @@ import { StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 function Home() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { importedSupplies } = useSuppliesStore();
+
+  // Combine default data with imported supplies
+  const allSupplies = useMemo(() => {
+    const convertedImported = importedSupplies.map((supply) => ({
+      Store: supply.Store,
+      StoreName: supply.StoreName,
+      ProductCode: supply.ProductCode,
+      ProductDescription: supply.ProductDescription,
+      Category: supply.Category,
+      UOM: supply.UOM,
+    }));
+    return [...MedicalSupplies, ...convertedImported];
+  }, [importedSupplies]);
 
   const filteredData = useMemo(() => {
     if (!searchQuery.trim()) {
-      return MedicalSupplies;
+      return allSupplies;
     }
 
     const query = searchQuery.toLowerCase();
-    return MedicalSupplies.filter(
+    return allSupplies.filter(
       (item) =>
         item.ProductCode.toLowerCase().includes(query) ||
         item.ProductDescription.toLowerCase().includes(query) ||
         item.Category.toLowerCase().includes(query) ||
         item.StoreName.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, allSupplies]);
 
   const clearSearch = () => {
     setSearchQuery("");
   };
 
   const handleItemPress = (item: MedicalSupply) => {
-    // Handle item press - you can navigate to detail screen or show modal
     console.log("Item pressed:", item.ProductCode);
   };
 
