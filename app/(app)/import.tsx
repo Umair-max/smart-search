@@ -255,7 +255,6 @@ export default function ImportScreen() {
       const itemsToUpload = duplicateResult.newItems;
       const totalItems = itemsToUpload.length;
 
-      // Reset progress
       setUploadProgress({ current: 0, total: totalItems, percentage: 0 });
 
       console.log("Starting upload of", totalItems, "items");
@@ -264,7 +263,7 @@ export default function ImportScreen() {
       const result = await importSupplies(
         itemsToUpload,
         user.email,
-        true, // overwrite existing
+        true,
         (progress) => {
           setUploadProgress(progress);
           console.log(
@@ -477,6 +476,7 @@ export default function ImportScreen() {
         ) : (
           <AppButton
             icon={PaperPlaneTiltIcon}
+            iconProps={{ color: colors.black }}
             label={
               isUploading
                 ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} items (${uploadProgress.percentage}%)`

@@ -13,6 +13,7 @@ export interface MedicalSupply {
   ProductDescription: string;
   Category: string;
   UOM: string;
+  imageUrl?: string; // Optional image URL
 }
 
 interface MedicalSupplyItemProps {

@@ -7,6 +7,7 @@ import { height, radius, spacingX, spacingY } from "@/config/spacing";
 import useSuppliesStore from "@/store/suppliesStore";
 import { normalizeY } from "@/utils/normalize";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -31,15 +32,10 @@ function Home() {
     clearAllSupplies,
   } = useSuppliesStore();
 
-  // Data is automatically fetched from Firebase on app start via DataLoader
-  // Pull-to-refresh will re-fetch from Firebase
-
-  // Use only Firestore supplies data
   const allSupplies = useMemo(() => {
     return supplies;
   }, [supplies]);
 
-  // Enhanced search with highlighting support
   const filteredData = useMemo(() => {
     if (!searchQuery.trim()) {
       return allSupplies;
@@ -64,17 +60,20 @@ function Home() {
     setSearchQuery("");
   };
 
-  const handleItemPress = (item: MedicalSupply) => {};
-
-  const getHighlightedText = (text: string, query: string) => {
-    if (!query.trim()) return text;
-
-    const parts = text.split(new RegExp(`(${query})`, "gi"));
-    return parts
-      .map((part, index) =>
-        part.toLowerCase() === query.toLowerCase() ? `**${part}**` : part
-      )
-      .join("");
+  const handleItemPress = (item: MedicalSupply) => {
+    // Navigate to details screen with item data as query parameters
+    router.push({
+      pathname: "/(app)/details",
+      params: {
+        productCode: item.ProductCode,
+        productDescription: item.ProductDescription,
+        category: item.Category,
+        store: item.Store.toString(),
+        storeName: item.StoreName,
+        uom: item.UOM,
+        imageUrl: item.imageUrl || "",
+      },
+    });
   };
 
   const renderContent = () => {

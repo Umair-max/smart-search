@@ -18,6 +18,7 @@ export interface FirestoreSupply extends MedicalSupply {
   updatedAt: string;
   importedBy: string;
   version: number;
+  imageUrl?: string; // Optional image URL
 }
 
 export interface ImportStats {
@@ -66,6 +67,7 @@ class SuppliesFirestoreService {
           ProductDescription: data.ProductDescription,
           Category: data.Category,
           UOM: data.UOM,
+          imageUrl: data.imageUrl, // Include image URL
         };
         supplies.push(supply);
       });
@@ -211,6 +213,7 @@ class SuppliesFirestoreService {
               ProductDescription: supply.ProductDescription,
               Category: supply.Category,
               UOM: supply.UOM,
+              imageUrl: supply.imageUrl, // Include image URL
               updatedAt: now,
               importedBy: userEmail,
               version: docSnap.exists() ? (docSnap.data().version || 0) + 1 : 1,
@@ -365,6 +368,7 @@ class SuppliesFirestoreService {
         ProductDescription: supply.ProductDescription,
         Category: supply.Category,
         UOM: supply.UOM,
+        imageUrl: supply.imageUrl, // Include image URL
         updatedAt: new Date().toISOString(),
         importedBy: userEmail,
         version: docSnap.exists() ? (docSnap.data().version || 0) + 1 : 1,
