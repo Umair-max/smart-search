@@ -1,4 +1,5 @@
 import { normalizeX } from "@/utils/normalize";
+import { Icon, IconProps } from "phosphor-react-native";
 import React from "react";
 import {
   ActivityIndicator,
@@ -21,6 +22,8 @@ interface AppButtonProps {
   varient?: "primary" | "secondary";
   isGradient?: boolean;
   disabled?: boolean;
+  icon?: Icon;
+  iconProps?: IconProps;
 }
 
 const AppButton: React.FC<AppButtonProps> = ({
@@ -31,9 +34,12 @@ const AppButton: React.FC<AppButtonProps> = ({
   loading = false,
   varient = "primary",
   disabled = false,
+  icon: Icon,
+  iconProps,
 }) => {
   const isPrimary = varient == "primary";
   const isDisabled = loading || disabled;
+  const textColor = isDisabled ? colors.black : colors.white;
 
   return (
     <TouchableOpacity
@@ -46,7 +52,6 @@ const AppButton: React.FC<AppButtonProps> = ({
             : isPrimary
             ? colors.primary
             : colors.buttonGrey,
-          opacity: isDisabled ? 0.6 : 1,
         },
         style,
       ]}
@@ -56,22 +61,22 @@ const AppButton: React.FC<AppButtonProps> = ({
         }
       }}
     >
-      {loading ? (
-        <ActivityIndicator color={colors.white} />
-      ) : (
-        <Typo
-          size={16}
-          style={[
-            styles.label,
-            {
-              color: colors.white,
-            },
-            textStyle,
-          ]}
-        >
-          {label}
-        </Typo>
+      {Icon && (
+        <Icon size={22} color={colors.white} weight="bold" {...iconProps} />
       )}
+      <Typo
+        size={16}
+        style={[
+          styles.label,
+          {
+            color: textColor,
+          },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Typo>
+      {loading && <ActivityIndicator color={textColor} />}
     </TouchableOpacity>
   );
 };
@@ -81,10 +86,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
-    borderRadius: radius._10,
+    borderRadius: radius._12,
     alignSelf: "center",
     overflow: "hidden",
     height: spacingH.btn,
+    flexDirection: "row",
   },
   label: {
     marginHorizontal: spacingX._10,

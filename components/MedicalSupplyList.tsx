@@ -1,9 +1,9 @@
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
-import { spacingY } from "@/config/spacing";
+import { height, spacingY } from "@/config/spacing";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, RefreshControlProps, StyleSheet, View } from "react-native";
 import MedicalSupplyItem, { MedicalSupply } from "./MedicalSupplyItem";
 
 interface MedicalSupplyListProps {
@@ -14,6 +14,7 @@ interface MedicalSupplyListProps {
   emptyTitle?: string;
   emptySubtitle?: string;
   contentContainerStyle?: any;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 const MedicalSupplyList: React.FC<MedicalSupplyListProps> = ({
@@ -24,6 +25,7 @@ const MedicalSupplyList: React.FC<MedicalSupplyListProps> = ({
   emptyTitle = "No items found",
   emptySubtitle = "Try adjusting your search terms",
   contentContainerStyle,
+  refreshControl,
 }) => {
   const renderItem = ({ item }: { item: MedicalSupply }) => (
     <MedicalSupplyItem
@@ -57,13 +59,14 @@ const MedicalSupplyList: React.FC<MedicalSupplyListProps> = ({
       contentContainerStyle={[styles.listContainer, contentContainerStyle]}
       ItemSeparatorComponent={renderSeparator}
       ListEmptyComponent={renderEmptyComponent}
+      refreshControl={refreshControl}
     />
   );
 };
 
 const styles = StyleSheet.create({
   listContainer: {
-    paddingBottom: spacingY._20,
+    paddingBottom: height * 0.12,
   },
   separator: {
     height: spacingY._12,

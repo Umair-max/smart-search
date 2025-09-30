@@ -1,96 +1,170 @@
 import { MedicalSupply } from "@/components/MedicalSupplyItem";
+import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-interface ImportedSupply extends MedicalSupply {
-  id: string;
-  importDate: string;
-  isImported: boolean;
-}
-
 interface SuppliesStore {
   // State
-  importedSupplies: ImportedSupply[];
+  supplies: MedicalSupply[];
   isLoading: boolean;
-  lastImportDate: string | null;
+  lastSyncDate: string | null;
+  isOnline: boolean;
 
   // Actions
-  addSupplies: (
-    supplies: Omit<ImportedSupply, "id" | "importDate" | "isImported">[]
-  ) => void;
-  removeSupply: (id: string) => void;
+  setSupplies: (supplies: MedicalSupply[]) => void;
+  addSupplies: (supplies: MedicalSupply[]) => void;
+  updateSupply: (supply: MedicalSupply) => void;
+  removeSupply: (productCode: string) => void;
   clearAllSupplies: () => void;
-  updateSupply: (id: string, updates: Partial<ImportedSupply>) => void;
   setLoading: (loading: boolean) => void;
+  setOnlineStatus: (online: boolean) => void;
 
-  // Getters
+  // Firestore sync
+  fetchFromFirestore: () => Promise<void>;
+  syncToFirestore: (
+    supplies: MedicalSupply[],
+    userEmail: string
+  ) => Promise<any>;
+
+  // Search and filters
+  searchSupplies: (query: string) => MedicalSupply[];
+  getSuppliesByCategory: (category: string) => MedicalSupply[];
   getTotalCount: () => number;
-  getSuppliesByCategory: (category: string) => ImportedSupply[];
-  searchSupplies: (query: string) => ImportedSupply[];
 }
 
 const useSuppliesStore = create<SuppliesStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      importedSupplies: [],
+      supplies: [],
       isLoading: false,
-      lastImportDate: null,
+      lastSyncDate: null,
+      isOnline: true,
 
-      // Actions
-      addSupplies: (supplies) => {
-        const now = new Date().toISOString();
-        const suppliesWithMeta = supplies.map((supply, index) => ({
-          ...supply,
-          id: `imported_${Date.now()}_${index}`,
-          importDate: now,
-          isImported: true,
-        }));
+      // Basic actions
+      setSupplies: (newSupplies) => {
+        console.log(
+          `Setting supplies: ${newSupplies.length} items (replacing all previous data)`
+        );
+        set({
+          supplies: newSupplies, // Always replace, never append
+          lastSyncDate: new Date().toISOString(),
+        });
+      },
 
+      addSupplies: (newSupplies) => {
+        set((state) => {
+          // Remove duplicates based on ProductCode
+          const existingCodes = new Set(
+            state.supplies.map((s) => s.ProductCode)
+          );
+          const uniqueSupplies = newSupplies.filter(
+            (s) => !existingCodes.has(s.ProductCode)
+          );
+
+          return {
+            supplies: [...state.supplies, ...uniqueSupplies],
+            lastSyncDate: new Date().toISOString(),
+          };
+        });
+      },
+
+      updateSupply: (updatedSupply) => {
         set((state) => ({
-          importedSupplies: [...state.importedSupplies, ...suppliesWithMeta],
-          lastImportDate: now,
+          supplies: state.supplies.map((supply) =>
+            supply.ProductCode === updatedSupply.ProductCode
+              ? updatedSupply
+              : supply
+          ),
+          lastSyncDate: new Date().toISOString(),
         }));
       },
 
-      removeSupply: (id) => {
+      removeSupply: (productCode) => {
         set((state) => ({
-          importedSupplies: state.importedSupplies.filter(
-            (supply) => supply.id !== id
+          supplies: state.supplies.filter(
+            (supply) => supply.ProductCode !== productCode
           ),
+          lastSyncDate: new Date().toISOString(),
         }));
       },
 
       clearAllSupplies: () => {
         set({
-          importedSupplies: [],
-          lastImportDate: null,
+          supplies: [],
+          lastSyncDate: null,
         });
-      },
-
-      updateSupply: (id, updates) => {
-        set((state) => ({
-          importedSupplies: state.importedSupplies.map((supply) =>
-            supply.id === id ? { ...supply, ...updates } : supply
-          ),
-        }));
       },
 
       setLoading: (loading) => {
         set({ isLoading: loading });
       },
 
-      // Getters
-      getTotalCount: () => get().importedSupplies.length,
+      setOnlineStatus: (online) => {
+        set({ isOnline: online });
+      },
 
-      getSuppliesByCategory: (category) =>
-        get().importedSupplies.filter((supply) =>
-          supply.Category.toLowerCase().includes(category.toLowerCase())
-        ),
+      // Firestore operations
+      fetchFromFirestore: async () => {
+        const { setLoading, setSupplies, setOnlineStatus } = get();
 
+        try {
+          setLoading(true);
+          setOnlineStatus(true);
+
+          const supplies = await SuppliesFirestoreService.fetchAllSupplies();
+
+          // Always replace local data with Firebase data (even if empty)
+          setSupplies(supplies);
+
+          if (supplies.length === 0) {
+            console.log(
+              "Fetched 0 supplies from Firestore - cleared local data"
+            );
+          } else {
+            console.log(
+              `Fetched ${supplies.length} supplies from Firestore - replaced local data`
+            );
+          }
+        } catch (error) {
+          console.error("Failed to fetch from Firestore:", error);
+          setOnlineStatus(false);
+          // Don't clear data on error, keep existing data
+          throw error;
+        } finally {
+          setLoading(false);
+        }
+      },
+
+      syncToFirestore: async (supplies, userEmail) => {
+        const { setLoading } = get();
+
+        try {
+          setLoading(true);
+
+          const stats = await SuppliesFirestoreService.importSupplies(
+            supplies,
+            userEmail,
+            true // overwrite existing
+          );
+
+          // Refresh local data after sync
+          await get().fetchFromFirestore();
+
+          console.log("Sync stats:", stats);
+          return stats;
+        } catch (error) {
+          console.error("Failed to sync to Firestore:", error);
+          throw error;
+        } finally {
+          setLoading(false);
+        }
+      },
+
+      // Search and filter methods
       searchSupplies: (query) => {
-        const supplies = get().importedSupplies;
+        const supplies = get().supplies;
         if (!query.trim()) return supplies;
 
         const searchTerm = query.toLowerCase();
@@ -102,13 +176,22 @@ const useSuppliesStore = create<SuppliesStore>()(
             supply.StoreName.toLowerCase().includes(searchTerm)
         );
       },
+
+      getSuppliesByCategory: (category) => {
+        const supplies = get().supplies;
+        return supplies.filter((supply) =>
+          supply.Category.toLowerCase().includes(category.toLowerCase())
+        );
+      },
+
+      getTotalCount: () => get().supplies.length,
     }),
     {
       name: "supplies-storage",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        importedSupplies: state.importedSupplies,
-        lastImportDate: state.lastImportDate,
+        supplies: state.supplies,
+        lastSyncDate: state.lastSyncDate,
       }),
     }
   )

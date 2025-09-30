@@ -6,7 +6,7 @@ import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { MedicalSupplies } from "@/config/data";
 import { spacingX, spacingY } from "@/config/spacing";
-import { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import PagerView from "react-native-pager-view";
 
