@@ -17,6 +17,8 @@ type AuthState = {
   loading: boolean;
   user: User | null;
   isAuthenticated: boolean;
+  authInitialized: boolean;
+  authUnsubscribe: (() => void) | null;
   OTPCode: string;
   currentEmail: string | null;
   signinUser: (value: SigninTypes, onSuccess?: () => void) => void;
@@ -29,21 +31,43 @@ type AuthState = {
 };
 
 export const useAuthStore = create<AuthState>((set, get) => ({
-  loading: false,
+  loading: true, // Start with loading true to wait for Firebase
   user: null,
   isAuthenticated: false,
+  authInitialized: false,
+  authUnsubscribe: null,
   OTPCode: "",
   currentEmail: null,
 
   initializeAuth: () => {
-    // Listen for authentication state changes
-    onAuthStateChanged(auth, (user) => {
+    // Prevent multiple initializations
+    const currentState = get();
+    if (currentState.authInitialized && currentState.authUnsubscribe) {
+      console.log("Auth already initialized, skipping...");
+      return;
+    }
+
+    // Clean up existing listener if any
+    if (currentState.authUnsubscribe) {
+      currentState.authUnsubscribe();
+    }
+
+    console.log("Setting up Firebase auth state listener...");
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log(
+        "Firebase auth state changed:",
+        user ? `User logged in: ${user.email}` : "User logged out"
+      );
       set({
         user,
         isAuthenticated: !!user,
         loading: false,
+        authInitialized: true,
       });
     });
+
+    // Store the unsubscribe function
+    set({ authUnsubscribe: unsubscribe });
   },
 
   signinUser: async (data, onSuccess) => {
@@ -59,10 +83,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         data.password
       );
 
-      set({
-        user: userCredential.user,
-        isAuthenticated: true,
-      });
+      // Don't set state here - let onAuthStateChanged handle it
+      console.log("Sign in successful, waiting for auth state change...");
 
       showToast("Signed in successfully!", "success");
       onSuccess?.();
@@ -109,10 +131,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         data.password
       );
 
-      set({
-        user: userCredential.user,
-        isAuthenticated: true,
-      });
+      // Don't set state here - let onAuthStateChanged handle it
+      console.log("Sign up successful, waiting for auth state change...");
 
       showToast("Account created successfully!", "success");
       onSuccess?.();
@@ -155,7 +175,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         currentEmail: null,
         OTPCode: "",
       });
-      showToast("Logged out successfully!", "success");
+      showToast("You've been logged out!", "success");
     } catch (error) {
       showError(error as Error, "Sign Out");
     }

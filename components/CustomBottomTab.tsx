@@ -39,15 +39,15 @@ const CustomBottomTab = ({ state, navigation }: Props) => {
   const tabs = [
     {
       name: "home",
-      file: require("@/assets/images/email.png"),
+      file: require("@/assets/images/home.png"),
     },
     {
       name: "expiry",
-      file: require("@/assets/images/email.png"),
+      file: require("@/assets/images/expiry.png"),
     },
     {
       name: "profile",
-      file: require("@/assets/images/email.png"),
+      file: require("@/assets/images/profile.png"),
     },
   ];
 

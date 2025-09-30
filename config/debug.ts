@@ -1,3 +1,5 @@
+import { debugFirebaseAuth, testAsyncStorage } from "../utils/debugAuth";
+
 // Debug helper to check environment variables
 export const debugEnvVars = () => {
   console.log("=== Environment Variables Debug ===");
@@ -31,4 +33,6 @@ export const debugEnvVars = () => {
 // Call this to debug
 if (__DEV__) {
   debugEnvVars();
+  debugFirebaseAuth();
+  testAsyncStorage();
 }

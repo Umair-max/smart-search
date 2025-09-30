@@ -1,22 +1,27 @@
 import React, { useEffect, useState } from "react";
 import {
+  Image,
+  ImageRequireSource,
+  ImageStyle,
+  Platform,
   StyleSheet,
   TextInput,
   TextInputProps,
   TextStyle,
-  Image,
-  ImageRequireSource,
-  ImageStyle,
   TouchableOpacity,
-  Platform,
+  View,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Typo from "../components/Typo";
 
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  WarningCircleIcon,
+} from "phosphor-react-native";
 import colors from "../config/colors";
-import { WarningCircleIcon } from "phosphor-react-native";
-import { normalizeY } from "../utils/normalize";
 import { fontS, radius, spacingX, spacingY } from "../config/spacing";
+import { normalizeY } from "../utils/normalize";
 
 interface Props extends TextInputProps {
   index?: number;
@@ -55,10 +60,10 @@ const Input: React.FC<Props> = ({
   imageStyle,
   inputProps,
 }) => {
-  const [passwordField, setPasswordField] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   useEffect(() => {
     if (password) {
-      setPasswordField(true);
+      setPasswordVisible(true);
     }
   }, [password]);
   return (
@@ -73,7 +78,7 @@ const Input: React.FC<Props> = ({
         </Typo>
       )}
       <TextInput
-        secureTextEntry={passwordField}
+        secureTextEntry={passwordVisible}
         value={value}
         onChangeText={onChangeText}
         style={[
@@ -102,10 +107,20 @@ const Input: React.FC<Props> = ({
             imageStyle,
           ]}
           onPress={() => {
-            if (placeholder == "Password") setPasswordField(!passwordField);
+            if (placeholder == "Password") setPasswordVisible(!passwordVisible);
           }}
         >
-          <Image source={image} style={styles.image} />
+          {placeholder == "Password" ? (
+            <View style={styles.image}>
+              {passwordVisible ? (
+                <EyeSlashIcon weight="fill" />
+              ) : (
+                <EyeIcon weight="fill" />
+              )}
+            </View>
+          ) : (
+            <Image source={image} style={styles.image} />
+          )}
         </TouchableOpacity>
       )}
       {error && (

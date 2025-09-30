@@ -77,7 +77,7 @@ function Login() {
               placeholder={"Password"}
               index={1}
               password
-              image={require("@/assets/images/lock.png")}
+              image={require("@/assets/images/email.png")}
             />
 
             <TouchableOpacity onPress={() => router.push("/forgot-password")}>

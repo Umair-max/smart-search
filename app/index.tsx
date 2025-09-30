@@ -19,7 +19,7 @@ const SplashScreen = () => {
   const fadeOutComplete = useSplashStore((state) => state.fadeOutComplete);
   const isSplashShown = useSplashStore((state) => state.isSplashShown);
 
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading, authInitialized } = useAuthStore();
 
   useEffect(() => {
     if (!isSplashShown) {
@@ -33,19 +33,20 @@ const SplashScreen = () => {
   }, [isSplashShown, setIsSplashShown, setFadeOutComplete]);
 
   useEffect(() => {
-    if (fadeOutComplete && !loading) {
+    if (fadeOutComplete && authInitialized && !loading) {
       const navigationTimer = setTimeout(() => {
-        // Navigate based on authentication status
         if (isAuthenticated) {
+          console.log("User is authenticated, navigating to home");
           router.replace("/(app)/(tabs)/home");
         } else {
+          console.log("User is not authenticated, navigating to login");
           router.replace("/(auth)/login");
         }
       }, 100);
 
       return () => clearTimeout(navigationTimer);
     }
-  }, [fadeOutComplete, isAuthenticated, loading]);
+  }, [fadeOutComplete, isAuthenticated, loading, authInitialized]);
 
   const fadeOutStyle = useAnimatedStyle(() => {
     return {

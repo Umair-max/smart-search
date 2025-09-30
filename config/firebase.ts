@@ -1,5 +1,6 @@
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
-import { Auth, getAuth } from "firebase/auth";
+import { Auth, getReactNativePersistence, initializeAuth } from "firebase/auth";
 import { Firestore, getFirestore } from "firebase/firestore";
 import { FirebaseStorage, getStorage } from "firebase/storage";
 import "./debug"; // Import debug helper
@@ -55,9 +56,11 @@ validateConfig();
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Auth
-// For Firebase JS SDK v12+ with Expo, persistence is handled automatically
-// The SDK automatically uses appropriate persistence for the platform
-const auth: Auth = getAuth(app);
+// For Expo with Firebase v12, use initializeAuth with getReactNativePersistence
+console.log("Initializing Firebase Auth with AsyncStorage persistence...");
+const auth: Auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+});
 
 // Initialize Firestore
 const db: Firestore = getFirestore(app);

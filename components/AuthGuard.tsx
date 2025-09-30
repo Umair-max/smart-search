@@ -9,15 +9,17 @@ interface AuthGuardProps {
 }
 
 const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading, authInitialized } = useAuthStore();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (authInitialized && !loading && !isAuthenticated) {
+      console.log("AuthGuard: User not authenticated, redirecting to login");
       router.replace("/(auth)/login");
     }
-  }, [isAuthenticated, loading]);
+  }, [isAuthenticated, loading, authInitialized]);
 
-  if (loading) {
+  // Show loading while Firebase is checking auth state
+  if (!authInitialized || loading) {
     return (
       <View
         style={{
@@ -36,6 +38,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     return null;
   }
 
+  console.log("AuthGuard: User authenticated, rendering protected content");
   return <>{children}</>;
 };
 
