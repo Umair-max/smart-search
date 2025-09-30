@@ -298,7 +298,7 @@ export default function ImportScreen() {
           [
             {
               text: "View Items",
-              onPress: () => router.replace("/(app)/(tabs)/home"),
+              onPress: () => router.back(),
             },
           ]
         );

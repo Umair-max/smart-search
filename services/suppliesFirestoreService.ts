@@ -233,6 +233,22 @@ class SuppliesFirestoreService {
             }
 
             stats.totalProcessed++;
+
+            // Update progress after each item for better granularity
+            if (
+              onProgress &&
+              (stats.totalProcessed % 3 === 0 ||
+                stats.totalProcessed === totalItems)
+            ) {
+              const progressPercentage = Math.round(
+                (stats.totalProcessed / totalItems) * 100
+              );
+              onProgress({
+                current: stats.totalProcessed,
+                total: totalItems,
+                percentage: progressPercentage,
+              });
+            }
           } catch (error) {
             stats.errors.push(
               `Failed to process ${
@@ -241,6 +257,23 @@ class SuppliesFirestoreService {
                 "unknown item"
               }: ${error}`
             );
+            stats.totalProcessed++;
+
+            // Update progress even for errors
+            if (
+              onProgress &&
+              (stats.totalProcessed % 3 === 0 ||
+                stats.totalProcessed === totalItems)
+            ) {
+              const progressPercentage = Math.round(
+                (stats.totalProcessed / totalItems) * 100
+              );
+              onProgress({
+                current: stats.totalProcessed,
+                total: totalItems,
+                percentage: progressPercentage,
+              });
+            }
           }
         }
 
