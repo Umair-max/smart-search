@@ -17,14 +17,14 @@ export interface MedicalSupply {
   expiryDate?: string; // Optional expiry date (ISO string)
 }
 
-interface MedicalSupplyItemProps {
+interface SupplyCardProps {
   item: MedicalSupply;
   onPress?: (item: MedicalSupply) => void;
   showExpiryStatus?: boolean;
   isExpired?: boolean;
 }
 
-const MedicalSupplyItem: React.FC<MedicalSupplyItemProps> = ({
+const SupplyCard: React.FC<SupplyCardProps> = ({
   item,
   onPress,
   showExpiryStatus = false,
@@ -140,15 +140,13 @@ const styles = StyleSheet.create({
     gap: spacingY._10,
   },
   codeContainer: {
-    backgroundColor: colors.lightBlue,
+    backgroundColor: colors.lightPrimary,
     paddingHorizontal: spacingX._10,
     paddingVertical: spacingY._4,
     borderRadius: radius._6,
-    flex: 1,
-    minWidth: 100,
   },
   codeText: {
-    color: colors.secondry,
+    color: colors.black,
     fontWeight: "600",
   },
   categoryContainer: {
@@ -219,4 +217,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MedicalSupplyItem;
+export default SupplyCard;

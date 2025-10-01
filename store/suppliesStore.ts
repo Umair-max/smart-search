@@ -1,4 +1,4 @@
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
+import { MedicalSupply } from "@/components/SupplyCard";
 import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";

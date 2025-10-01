@@ -1,4 +1,4 @@
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
+import { MedicalSupply } from "@/components/SupplyCard";
 import * as DocumentPicker from "expo-document-picker";
 import * as XLSX from "xlsx";
 

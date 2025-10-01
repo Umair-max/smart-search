@@ -1,7 +1,7 @@
 import ExpiryTabs, { EnumOrderTab } from "@/components/ExpiryTabs";
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
 import MedicalSupplyList from "@/components/MedicalSupplyList";
 import ScreenComponent from "@/components/ScreenComponent";
+import { MedicalSupply } from "@/components/SupplyCard";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { spacingX, spacingY } from "@/config/spacing";
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   statCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: spacingX._15,
+    padding: spacingX._7,
     alignItems: "center",
     flex: 1,
     marginHorizontal: spacingX._5,

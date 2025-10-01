@@ -1,6 +1,6 @@
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
 import MedicalSupplyList from "@/components/MedicalSupplyList";
 import ScreenComponent from "@/components/ScreenComponent";
+import { MedicalSupply } from "@/components/SupplyCard";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { height, radius, spacingX, spacingY } from "@/config/spacing";

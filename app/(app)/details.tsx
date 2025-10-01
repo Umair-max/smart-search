@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -7,17 +6,17 @@ import {
   Alert,
   Dimensions,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 import AppButton from "@/components/AppButton";
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
 import ScreenComponent from "@/components/ScreenComponent";
+import { MedicalSupply } from "@/components/SupplyCard";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { radius, spacingX, spacingY, width } from "@/config/spacing";
@@ -133,16 +132,18 @@ export default function DetailsScreen() {
     ]);
   };
 
-  const handleDateChange = (event: any, date?: Date) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (date) {
-      setSelectedDate(date);
-      setItem({ ...item, expiryDate: date.toISOString() });
-    }
+  const handleDateChange = (date: Date) => {
+    setShowDatePicker(false);
+    setSelectedDate(date);
+    setItem({ ...item, expiryDate: date.toISOString() });
   };
 
   const showDatePickerModal = () => {
     setShowDatePicker(true);
+  };
+
+  const hideDatePickerModal = () => {
+    setShowDatePicker(false);
   };
 
   const formatDate = (dateString?: string) => {
@@ -522,18 +523,6 @@ export default function DetailsScreen() {
         </ScrollView>
       </View>
 
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate || new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handleDateChange}
-          minimumDate={new Date()}
-        />
-      )}
-
-      {/* Action Buttons */}
       {isEditing && (
         <View style={styles.actionContainer}>
           <View style={styles.buttonRow}>
@@ -557,6 +546,16 @@ export default function DetailsScreen() {
           </View>
         </View>
       )}
+      <DateTimePickerModal
+        isVisible={showDatePicker}
+        mode="date"
+        date={selectedDate || new Date()}
+        onConfirm={handleDateChange}
+        onCancel={hideDatePickerModal}
+        minimumDate={new Date()}
+        textColor={colors.black}
+        accentColor={colors.primary}
+      />
     </ScreenComponent>
   );
 }
@@ -610,7 +609,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailsScrollContent: {
-    paddingBottom: 50,
+    paddingBottom: 100,
     paddingHorizontal: spacingY._20,
   },
   itemImage: {

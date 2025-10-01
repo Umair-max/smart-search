@@ -1,4 +1,4 @@
-import { MedicalSupply } from "@/components/MedicalSupplyItem";
+import { MedicalSupply } from "@/components/SupplyCard";
 import { db } from "@/config/firebase";
 import {
   collection,

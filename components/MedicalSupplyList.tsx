@@ -4,7 +4,7 @@ import { height, spacingY } from "@/config/spacing";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { FlatList, RefreshControlProps, StyleSheet, View } from "react-native";
-import MedicalSupplyItem, { MedicalSupply } from "./MedicalSupplyItem";
+import SupplyCard, { MedicalSupply } from "./SupplyCard";
 
 interface MedicalSupplyListProps {
   data: MedicalSupply[];
@@ -28,7 +28,7 @@ const MedicalSupplyList: React.FC<MedicalSupplyListProps> = ({
   refreshControl,
 }) => {
   const renderItem = ({ item }: { item: MedicalSupply }) => (
-    <MedicalSupplyItem
+    <SupplyCard
       item={item}
       onPress={onItemPress}
       showExpiryStatus={showExpiryStatus}
