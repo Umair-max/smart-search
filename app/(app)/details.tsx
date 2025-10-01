@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Dimensions,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -18,14 +20,16 @@ import { MedicalSupply } from "@/components/MedicalSupplyItem";
 import ScreenComponent from "@/components/ScreenComponent";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
-import { radius, spacingX, spacingY } from "@/config/spacing";
+import { radius, spacingX, spacingY, width } from "@/config/spacing";
 import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
 import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
 
+const { height } = Dimensions.get("window");
+
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
-  const { user } = useAuthStore();
+  const { user, canEdit, isBlocked } = useAuthStore();
   const { updateSupply, supplies } = useSuppliesStore();
 
   // Parse the item from params
@@ -37,6 +41,7 @@ export default function DetailsScreen() {
     StoreName: (params.storeName as string) || "",
     UOM: (params.uom as string) || "",
     imageUrl: (params.imageUrl as string) || undefined,
+    expiryDate: (params.expiryDate as string) || undefined,
   };
 
   // State management
@@ -47,6 +52,10 @@ export default function DetailsScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    initialItem.expiryDate ? new Date(initialItem.expiryDate) : undefined
+  );
 
   // Track changes
   useEffect(() => {
@@ -56,6 +65,7 @@ export default function DetailsScreen() {
       item.Category !== initialItem.Category ||
       item.StoreName !== initialItem.StoreName ||
       item.UOM !== initialItem.UOM ||
+      item.expiryDate !== initialItem.expiryDate ||
       imageUri !== (initialItem.imageUrl || null);
 
     setHasChanges(hasItemChanges);
@@ -121,6 +131,40 @@ export default function DetailsScreen() {
       { text: "Take Photo", onPress: handleTakePhoto },
       { text: "Choose from Library", onPress: handleImagePick },
     ]);
+  };
+
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (date) {
+      setSelectedDate(date);
+      setItem({ ...item, expiryDate: date.toISOString() });
+    }
+  };
+
+  const showDatePickerModal = () => {
+    setShowDatePicker(true);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "No expiry date set";
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  const isExpired = (dateString?: string) => {
+    if (!dateString) return false;
+    const expiryDate = new Date(dateString);
+    const today = new Date();
+    return expiryDate < today;
+  };
+
+  const isNearExpiry = (dateString?: string) => {
+    if (!dateString) return false;
+    const expiryDate = new Date(dateString);
+    const today = new Date();
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(today.getMonth() + 1);
+    return expiryDate > today && expiryDate <= oneMonthFromNow;
   };
 
   const handleSave = async () => {
@@ -239,13 +283,6 @@ export default function DetailsScreen() {
 
   return (
     <ScreenComponent style={styles.container}>
-      <BlurView
-        intensity={100}
-        tint="extraLight"
-        style={styles.blurContainer}
-      />
-
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.black} />
@@ -253,49 +290,51 @@ export default function DetailsScreen() {
         <Typo size={20} style={styles.headerTitle}>
           Item Details
         </Typo>
-        <TouchableOpacity
-          onPress={() => setIsEditing(!isEditing)}
-          style={styles.editButton}
-        >
-          <Ionicons
-            name={isEditing ? "close" : "pencil"}
-            size={20}
-            color={isEditing ? colors.error : colors.primary}
-          />
-        </TouchableOpacity>
+        {canEdit() && !isBlocked() && (
+          <TouchableOpacity
+            onPress={() => setIsEditing(!isEditing)}
+            style={styles.editButton}
+          >
+            <Ionicons
+              name={isEditing ? "close" : "pencil"}
+              size={20}
+              color={isEditing ? colors.error : colors.primary}
+            />
+          </TouchableOpacity>
+        )}
+        {(!canEdit() || isBlocked()) && <View style={styles.editButton} />}
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Image Section */}
-        <View style={styles.imageSection}>
-          <View style={styles.imageContainer}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.itemImage} />
-            ) : (
-              <View style={styles.placeholderImage}>
-                <Ionicons name="image" size={40} color={colors.midGray} />
-                <Typo size={12} style={styles.placeholderText}>
-                  No Image
-                </Typo>
-              </View>
-            )}
-            {isEditing && (
-              <TouchableOpacity
-                style={styles.imageEditButton}
-                onPress={showImagePicker}
-              >
-                <Ionicons name="camera" size={16} color={colors.white} />
-              </TouchableOpacity>
-            )}
-          </View>
+      <View style={styles.imageSection}>
+        <View style={styles.imageContainer}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.itemImage} />
+          ) : (
+            <View style={styles.placeholderImage}>
+              <Ionicons name="image" size={40} color={colors.midGray} />
+              <Typo size={12} style={styles.placeholderText}>
+                No Image
+              </Typo>
+            </View>
+          )}
+          {isEditing && (
+            <TouchableOpacity
+              style={styles.imageEditButton}
+              onPress={showImagePicker}
+            >
+              <Ionicons name="camera" size={16} color={colors.white} />
+            </TouchableOpacity>
+          )}
         </View>
+      </View>
 
-        {/* Details Section */}
-        <View style={styles.detailsSection}>
+      <View style={styles.detailsContainer}>
+        <View style={{ height: spacingY._20 }} />
+        <ScrollView
+          style={styles.detailsScrollView}
+          contentContainerStyle={styles.detailsScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Product Code */}
           <View style={styles.fieldContainer}>
             <Typo size={14} style={styles.fieldLabel}>
@@ -410,6 +449,65 @@ export default function DetailsScreen() {
             )}
           </View>
 
+          {/* Expiry Date */}
+          <View style={styles.fieldContainer}>
+            <Typo size={14} style={styles.fieldLabel}>
+              Expiry Date
+            </Typo>
+            {isEditing ? (
+              <TouchableOpacity
+                style={styles.datePickerButton}
+                onPress={showDatePickerModal}
+              >
+                <Typo
+                  size={16}
+                  style={[
+                    styles.datePickerText,
+                    !item.expiryDate && styles.datePickerPlaceholder,
+                    isExpired(item.expiryDate) && styles.expiredText,
+                    isNearExpiry(item.expiryDate) && styles.nearExpiryText,
+                  ]}
+                >
+                  {formatDate(item.expiryDate)}
+                </Typo>
+                <Ionicons
+                  name="calendar-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.fieldValue}>
+                <Typo
+                  size={16}
+                  style={[
+                    styles.valueText,
+                    isExpired(item.expiryDate) && styles.expiredText,
+                    isNearExpiry(item.expiryDate) && styles.nearExpiryText,
+                  ]}
+                >
+                  {formatDate(item.expiryDate)}
+                </Typo>
+                {isExpired(item.expiryDate) && (
+                  <View style={styles.expiryWarning}>
+                    <Ionicons name="warning" size={16} color={colors.error} />
+                    <Typo size={12} style={styles.expiredLabel}>
+                      EXPIRED
+                    </Typo>
+                  </View>
+                )}
+                {isNearExpiry(item.expiryDate) && (
+                  <View style={styles.expiryWarning}>
+                    <Ionicons name="time" size={16} color={colors.warning} />
+                    <Typo size={12} style={styles.nearExpiryLabel}>
+                      EXPIRES SOON
+                    </Typo>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
           {/* Store Number (Read-only) */}
           <View style={styles.fieldContainer}>
             <Typo size={14} style={styles.fieldLabel}>
@@ -421,8 +519,19 @@ export default function DetailsScreen() {
               </Typo>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
+
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate || new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={handleDateChange}
+          minimumDate={new Date()}
+        />
+      )}
 
       {/* Action Buttons */}
       {isEditing && (
@@ -455,22 +564,14 @@ export default function DetailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: spacingX._20,
-  },
-  blurContainer: {
-    paddingTop: 0,
-    padding: spacingY._20,
-    paddingBottom: "10%",
-    textAlign: "center",
-    overflow: "hidden",
-    borderRadius: radius._20,
-    ...StyleSheet.absoluteFillObject,
+    paddingHorizontal: spacingX._15,
+    backgroundColor: colors.lightPrimary,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacingY._20,
+    marginBottom: spacingY._5,
   },
   backButton: {
     padding: spacingY._10,
@@ -482,23 +583,35 @@ const styles = StyleSheet.create({
   editButton: {
     padding: spacingY._10,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
   imageSection: {
     alignItems: "center",
-    marginBottom: spacingY._30,
+    marginBottom: spacingY._15,
   },
   imageContainer: {
     position: "relative",
-    width: 200,
-    height: 150,
+    width: "100%",
+    height: height * 0.25,
     borderRadius: radius._15,
     overflow: "hidden",
     backgroundColor: colors.lightGray,
+  },
+  detailsContainer: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: radius._20,
+    shadowColor: colors.black,
+    shadowOffset: { height: -3, width: 0 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    width: width,
+    alignSelf: "center",
+  },
+  detailsScrollView: {
+    flex: 1,
+  },
+  detailsScrollContent: {
+    paddingBottom: 50,
+    paddingHorizontal: spacingY._20,
   },
   itemImage: {
     width: "100%",
@@ -608,5 +721,45 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
+  },
+  datePickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+    borderRadius: radius._10,
+    padding: spacingY._12,
+    backgroundColor: colors.white,
+  },
+  datePickerText: {
+    color: colors.black,
+  },
+  datePickerPlaceholder: {
+    color: colors.placeholder,
+  },
+  expiredText: {
+    color: colors.error,
+    fontWeight: "600",
+  },
+  nearExpiryText: {
+    color: colors.warning,
+    fontWeight: "600",
+  },
+  expiryWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacingY._4,
+    gap: spacingX._4,
+  },
+  expiredLabel: {
+    color: colors.error,
+    fontWeight: "600",
+    fontSize: 10,
+  },
+  nearExpiryLabel: {
+    color: colors.warning,
+    fontWeight: "600",
+    fontSize: 10,
   },
 });

@@ -14,6 +14,7 @@ export interface MedicalSupply {
   Category: string;
   UOM: string;
   imageUrl?: string; // Optional image URL
+  expiryDate?: string; // Optional expiry date (ISO string)
 }
 
 interface MedicalSupplyItemProps {

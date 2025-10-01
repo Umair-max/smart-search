@@ -53,7 +53,6 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
     );
   }
 
-  // Show error message if there was an issue
   if (error) {
     return (
       <View style={styles.container}>

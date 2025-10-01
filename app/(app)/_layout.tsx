@@ -8,6 +8,11 @@ export default function AppLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="import" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="manage-permissions"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="details" options={{ headerShown: false }} />
       </Stack>
     </AuthGuard>
   );

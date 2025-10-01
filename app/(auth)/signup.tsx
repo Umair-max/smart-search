@@ -32,7 +32,9 @@ function Signup() {
 
   const onSubmit = async (data: SignupTypes) => {
     signupUser(data, () => {
-      router.back();
+      // After successful signup, user is automatically logged in by Firebase
+      // Navigate to the main app instead of going back to login
+      router.replace("/(app)/(tabs)/home");
     });
   };
 

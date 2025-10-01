@@ -19,6 +19,7 @@ export interface FirestoreSupply extends MedicalSupply {
   importedBy: string;
   version: number;
   imageUrl?: string; // Optional image URL
+  expiryDate?: string; // Optional expiry date (ISO string)
 }
 
 export interface ImportStats {
@@ -68,6 +69,7 @@ class SuppliesFirestoreService {
           Category: data.Category,
           UOM: data.UOM,
           imageUrl: data.imageUrl, // Include image URL
+          expiryDate: data.expiryDate, // Include expiry date
         };
         supplies.push(supply);
       });

@@ -2,6 +2,7 @@ import ScreenComponent from "@/components/ScreenComponent";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { radius, spacingX, spacingY } from "@/config/spacing";
+import ImageCompressionService from "@/services/imageCompressionService";
 import useAlertStore from "@/store/alertStore";
 import { useAuthStore } from "@/store/authStore";
 import { normalizeY } from "@/utils/normalize";
@@ -11,10 +12,10 @@ import {
   Ionicons,
   Octicons,
 } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React from "react";
-import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { Alert, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated from "react-native-reanimated";
 
 interface RowProps {
@@ -27,10 +28,117 @@ interface RowProps {
 
 function ProfileScreen() {
   const { setAlertVisible, setOnConfirm } = useAlertStore();
-  const { user, logoutUser, loading } = useAuthStore();
+  const {
+    user,
+    userProfile,
+    logoutUser,
+    updateUserProfile,
+    isAdmin,
+    canUpload,
+  } = useAuthStore();
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleImportSupplies = () => {
     router.push("/(app)/import");
+  };
+
+  const handleManagePermissions = () => {
+    router.push("/(app)/manage-permissions");
+  };
+
+  const handleProfileImagePress = () => {
+    Alert.alert(
+      "Profile Picture",
+      "Choose how you'd like to update your profile picture:",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Take Photo", onPress: handleTakePhoto },
+        { text: "Choose from Library", onPress: handleImagePick },
+      ]
+    );
+  };
+
+  const handleImagePick = async () => {
+    try {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Sorry, we need camera roll permissions to add images.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        await processAndUploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Sorry, we need camera permissions to take photos.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        await processAndUploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to take photo");
+    }
+  };
+
+  const processAndUploadImage = async (imageUri: string) => {
+    try {
+      setIsUploadingImage(true);
+
+      const compressedResult = await ImageCompressionService.compressForProfile(
+        imageUri
+      );
+
+      if (compressedResult.originalSize && compressedResult.compressedSize) {
+        const stats = ImageCompressionService.getCompressionStats(
+          compressedResult.originalSize,
+          compressedResult.compressedSize
+        );
+        console.log(
+          `Image compressed: ${stats.originalSize} → ${stats.compressedSize} (${stats.percentage}% reduction)`
+        );
+      }
+
+      await updateUserProfile({ profileImageUrl: compressedResult.uri });
+
+      Alert.alert("Success", "Profile picture updated successfully!");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      Alert.alert("Error", "Failed to update profile picture");
+    } finally {
+      setIsUploadingImage(false);
+    }
   };
 
   const handleLogout = () => {
@@ -47,26 +155,61 @@ function ProfileScreen() {
 
   return (
     <ScreenComponent style={styles.container}>
-      <BlurView
-        intensity={100}
-        tint="extraLight"
-        style={styles.blurContainer}
-      />
-
       <View style={styles.topRow}>
-        <Image
-          source={{
-            uri: "https://img.freepik.com/free-photo/handsome-smiling-man-looking-with-disbelief_176420-19591.jpg?t=st=1723641040~exp=1723644640~hmac=aef27975e23ff9df20ea1f41d340106576264a0d6c9400a220ad615579e1340b&w=740",
-          }}
-          style={styles.img}
-        />
+        <TouchableOpacity
+          onPress={handleProfileImagePress}
+          style={styles.imageContainer}
+        >
+          <Image
+            source={
+              userProfile?.profileImageUrl
+                ? {
+                    uri: userProfile.profileImageUrl,
+                  }
+                : require("@/assets/images/logo.png")
+            }
+            style={styles.img}
+          />
+          {isUploadingImage && (
+            <View style={styles.uploadingOverlay}>
+              <View style={styles.uploadingIndicator}>
+                <Typo size={12} style={styles.uploadingText}>
+                  Uploading...
+                </Typo>
+              </View>
+            </View>
+          )}
+          <View style={styles.cameraIcon}>
+            <Ionicons name="camera" size={16} color={colors.white} />
+          </View>
+        </TouchableOpacity>
         <View style={{ gap: spacingY._7, alignItems: "center" }}>
           <Typo size={22} style={styles.name}>
-            {user?.email?.split("@")[0]}
+            {userProfile?.displayName || user?.email?.split("@")[0]}
           </Typo>
           <Typo size={16} style={{ color: colors.textGray, fontWeight: "500" }}>
             {user?.email}
           </Typo>
+          <View
+            style={[
+              styles.roleContainer,
+              {
+                backgroundColor: isAdmin()
+                  ? colors.primary
+                  : colors.lightPurple,
+              },
+            ]}
+          >
+            <Typo
+              size={12}
+              style={[
+                styles.roleText,
+                { color: isAdmin() ? colors.white : colors.purple },
+              ]}
+            >
+              {userProfile?.role?.toUpperCase() || "USER"}
+            </Typo>
+          </View>
         </View>
       </View>
       <View
@@ -76,21 +219,33 @@ function ProfileScreen() {
           marginBottom: "35%",
         }}
       >
-        <View style={styles.bottomContainer}>
-          <Row
-            title={"Import Supplies"}
-            iconColor={colors.lightPrimary}
-            icon={<FontAwesome6 name="file-import" size={24} color="black" />}
-            index={0}
-            onPress={handleImportSupplies}
-          />
-          <Row
-            title={"Manage Permissions"}
-            iconColor={colors.lightPrimary}
-            icon={<Ionicons name="people" size={24} color={"black"} />}
-            index={2}
-          />
-        </View>
+        {canUpload() || isAdmin() ? (
+          <View style={styles.bottomContainer}>
+            {canUpload() && (
+              <Row
+                title={"Import Supplies"}
+                iconColor={colors.lightPrimary}
+                icon={
+                  <FontAwesome6 name="file-import" size={24} color="black" />
+                }
+                index={0}
+                onPress={handleImportSupplies}
+              />
+            )}
+            {isAdmin() && (
+              <Row
+                title={"Manage Permissions"}
+                iconColor={colors.lightPrimary}
+                icon={<Ionicons name="people" size={24} color={"black"} />}
+                index={2}
+                onPress={handleManagePermissions}
+              />
+            )}
+          </View>
+        ) : (
+          <View />
+        )}
+
         <View style={styles.bottomContainer}>
           <Row
             title={"Log out"}
@@ -137,15 +292,7 @@ const Row = ({ icon, title, iconColor, onPress }: RowProps) => {
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: spacingX._20,
-  },
-  blurContainer: {
-    paddingTop: 0,
-    padding: spacingY._20,
-    paddingBottom: "10%",
-    textAlign: "center",
-    overflow: "hidden",
-    borderRadius: radius._20,
-    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.lightPrimary,
   },
   topRow: {
     marginBottom: normalizeY(25),
@@ -153,12 +300,58 @@ const styles = StyleSheet.create({
     gap: spacingX._10,
     marginTop: "15%",
   },
+  imageContainer: {
+    position: "relative",
+  },
   img: {
     height: normalizeY(110),
     width: normalizeY(110),
     borderRadius: normalizeY(60),
     borderWidth: normalizeY(3),
     borderColor: colors.primary,
+  },
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: normalizeY(15),
+    width: normalizeY(30),
+    height: normalizeY(30),
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  uploadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: normalizeY(60),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadingIndicator: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacingX._10,
+    paddingVertical: spacingY._5,
+    borderRadius: radius._6,
+  },
+  uploadingText: {
+    color: colors.black,
+    fontWeight: "600",
+  },
+  roleContainer: {
+    paddingHorizontal: spacingX._10,
+    paddingVertical: spacingY._4,
+    borderRadius: radius._12,
+  },
+  roleText: {
+    fontWeight: "600",
+    fontSize: 10,
   },
   name: {
     fontWeight: "600",

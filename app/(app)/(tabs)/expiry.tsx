@@ -4,41 +4,50 @@ import MedicalSupplyList from "@/components/MedicalSupplyList";
 import ScreenComponent from "@/components/ScreenComponent";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
-import { MedicalSupplies } from "@/config/data";
 import { spacingX, spacingY } from "@/config/spacing";
+import useSuppliesStore from "@/store/suppliesStore";
+import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import PagerView from "react-native-pager-view";
 
 function Expiry() {
   const [selected, setSelected] = useState<EnumOrderTab>(EnumOrderTab.EXPIRED);
   const pagerRef = useRef<PagerView>(null);
+  const { supplies } = useSuppliesStore();
 
-  const getIsExpired = (item: MedicalSupply): boolean => {
-    const hash = item.ProductCode.split("").reduce((a, b) => {
-      a = (a << 5) - a + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return Math.abs(hash) % 5 < 2;
+  /**
+   * Check if an item is expired
+   */
+  const isExpired = (item: MedicalSupply): boolean => {
+    if (!item.expiryDate) return false;
+    const expiryDate = new Date(item.expiryDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    return expiryDate < today;
   };
 
-  const getIsNearExpiry = (item: MedicalSupply): boolean => {
-    const hash = item.ProductDescription.split("").reduce((a, b) => {
-      a = (a << 3) - a + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return Math.abs(hash) % 3 === 0;
+  /**
+   * Check if an item is near expiry (within 1 month)
+   */
+  const isNearExpiry = (item: MedicalSupply): boolean => {
+    if (!item.expiryDate) return false;
+    const expiryDate = new Date(item.expiryDate);
+    const today = new Date();
+    const oneMonthFromNow = new Date();
+    oneMonthFromNow.setMonth(today.getMonth() + 1);
+
+    // Item is near expiry if it expires within 1 month but is not yet expired
+    return expiryDate > today && expiryDate <= oneMonthFromNow;
   };
 
   const expiredItems = useMemo(() => {
-    return MedicalSupplies.filter((item) => getIsExpired(item));
-  }, []);
+    return supplies.filter((item) => isExpired(item));
+  }, [supplies]);
 
   const nearExpiryItems = useMemo(() => {
-    return MedicalSupplies.filter(
-      (item) => !getIsExpired(item) && getIsNearExpiry(item)
-    );
-  }, []);
+    return supplies.filter((item) => isNearExpiry(item));
+  }, [supplies]);
 
   const handleTabChange = (tab: EnumOrderTab) => {
     const pageIndex = tab === EnumOrderTab.EXPIRED ? 0 : 1;
@@ -54,7 +63,10 @@ function Expiry() {
   };
 
   const handleItemPress = (item: MedicalSupply) => {
-    console.log("Expiry item pressed:", item.ProductCode);
+    router.push({
+      pathname: "/(app)/details",
+      params: { ProductCode: item.ProductCode },
+    });
   };
 
   return (
@@ -71,11 +83,13 @@ function Expiry() {
       <ExpiryTabs selected={selected} setSelected={handleTabChange} />
 
       <View style={styles.statsContainer}>
-        <View
+        <TouchableOpacity
           style={[
             styles.statCard,
             selected === EnumOrderTab.EXPIRED && styles.activeStatCard,
           ]}
+          onPress={() => handleTabChange(EnumOrderTab.EXPIRED)}
+          activeOpacity={0.7}
         >
           <Typo size={20} style={[styles.statNumber, { color: colors.red }]}>
             {expiredItems.length}
@@ -83,12 +97,14 @@ function Expiry() {
           <Typo size={12} style={styles.statLabel}>
             Expired Items
           </Typo>
-        </View>
-        <View
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[
             styles.statCard,
             selected === EnumOrderTab.NEAREXPIRY && styles.activeStatCard,
           ]}
+          onPress={() => handleTabChange(EnumOrderTab.NEAREXPIRY)}
+          activeOpacity={0.7}
         >
           <Typo
             size={20}
@@ -99,7 +115,7 @@ function Expiry() {
           <Typo size={12} style={styles.statLabel}>
             Near Expiry
           </Typo>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <PagerView
@@ -114,7 +130,7 @@ function Expiry() {
             data={expiredItems}
             onItemPress={handleItemPress}
             showExpiryStatus={true}
-            getIsExpired={() => true}
+            getIsExpired={isExpired}
             emptyTitle="No expired items"
             emptySubtitle="All items are within their expiry dates"
           />
@@ -125,7 +141,7 @@ function Expiry() {
             data={nearExpiryItems}
             onItemPress={handleItemPress}
             showExpiryStatus={true}
-            getIsExpired={() => false}
+            getIsExpired={isExpired}
             emptyTitle="No items near expiry"
             emptySubtitle="All items have sufficient time remaining"
           />
