@@ -370,7 +370,6 @@ class SuppliesFirestoreService {
         ProductDescription: supply.ProductDescription,
         Category: supply.Category,
         UOM: supply.UOM,
-        imageUrl: supply.imageUrl, // Include image URL
         updatedAt: new Date().toISOString(),
         importedBy: userEmail,
         version: docSnap.exists() ? (docSnap.data().version || 0) + 1 : 1,
@@ -378,6 +377,11 @@ class SuppliesFirestoreService {
           ? docSnap.data().createdAt || new Date().toISOString()
           : new Date().toISOString(),
       };
+
+      // Conditionally add imageUrl only if it has a valid value
+      if (supply.imageUrl) {
+        supplyData.imageUrl = supply.imageUrl;
+      }
 
       await setDoc(docRef, supplyData);
     } catch (error) {

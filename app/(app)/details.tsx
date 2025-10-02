@@ -29,46 +29,63 @@ const { height } = Dimensions.get("window");
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
   const { user, canEdit, isBlocked } = useAuthStore();
-  const { updateSupply, supplies } = useSuppliesStore();
+  const { supplies, updateSupply } = useSuppliesStore();
 
-  // Parse the item from params
-  const initialItem: MedicalSupply = {
-    ProductCode: (params.productCode as string) || "",
-    ProductDescription: (params.productDescription as string) || "",
-    Category: (params.category as string) || "",
-    Store: Number(params.store) || 0,
-    StoreName: (params.storeName as string) || "",
-    UOM: (params.uom as string) || "",
-    imageUrl: (params.imageUrl as string) || undefined,
-    expiryDate: (params.expiryDate as string) || undefined,
-  };
+  // Get product code from params
+  const productCode = (params.productCode as string) || "";
+
+  // Find the item from the store using product code
+  const item = supplies.find((s) => s.ProductCode === productCode);
+
+  // If item not found, show error or go back
+  if (!item) {
+    return (
+      <ScreenComponent style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Typo size={18} style={styles.errorText}>
+            Item not found
+          </Typo>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Typo size={16} style={styles.backButtonText}>
+              Go Back
+            </Typo>
+          </TouchableOpacity>
+        </View>
+      </ScreenComponent>
+    );
+  }
 
   // State management
-  const [item, setItem] = useState<MedicalSupply>(initialItem);
   const [imageUri, setImageUri] = useState<string | null>(
-    initialItem.imageUrl || null
+    item.imageUrl || null
   );
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    initialItem.expiryDate ? new Date(initialItem.expiryDate) : undefined
+    item.expiryDate ? new Date(item.expiryDate) : undefined
   );
+
+  // Create editable item state
+  const [editableItem, setEditableItem] = useState<MedicalSupply>({ ...item });
 
   // Track changes
   useEffect(() => {
     const hasItemChanges =
-      item.ProductCode !== initialItem.ProductCode ||
-      item.ProductDescription !== initialItem.ProductDescription ||
-      item.Category !== initialItem.Category ||
-      item.StoreName !== initialItem.StoreName ||
-      item.UOM !== initialItem.UOM ||
-      item.expiryDate !== initialItem.expiryDate ||
-      imageUri !== (initialItem.imageUrl || null);
+      editableItem.ProductCode !== item.ProductCode ||
+      editableItem.ProductDescription !== item.ProductDescription ||
+      editableItem.Category !== item.Category ||
+      editableItem.StoreName !== item.StoreName ||
+      editableItem.UOM !== item.UOM ||
+      editableItem.expiryDate !== item.expiryDate ||
+      imageUri !== (item.imageUrl || null);
 
     setHasChanges(hasItemChanges);
-  }, [item, imageUri, initialItem]);
+  }, [editableItem, imageUri, item]);
 
   const handleImagePick = async () => {
     try {
@@ -135,7 +152,7 @@ export default function DetailsScreen() {
   const handleDateChange = (date: Date) => {
     setShowDatePicker(false);
     setSelectedDate(date);
-    setItem({ ...item, expiryDate: date.toISOString() });
+    setEditableItem({ ...editableItem, expiryDate: date.toISOString() });
   };
 
   const showDatePickerModal = () => {
@@ -189,17 +206,17 @@ export default function DetailsScreen() {
 
     try {
       // Check if ProductCode changed
-      const productCodeChanged = item.ProductCode !== initialItem.ProductCode;
+      const productCodeChanged = editableItem.ProductCode !== item.ProductCode;
 
       if (productCodeChanged) {
         // Check if new ProductCode already exists
         const existingItem = supplies.find(
-          (s) => s.ProductCode === item.ProductCode
+          (s) => s.ProductCode === editableItem.ProductCode
         );
         if (existingItem) {
           Alert.alert(
             "Duplicate Product Code",
-            `Product code "${item.ProductCode}" already exists. Please use a different code.`,
+            `Product code "${editableItem.ProductCode}" already exists. Please use a different code.`,
             [{ text: "OK" }]
           );
           setIsSaving(false);
@@ -207,17 +224,23 @@ export default function DetailsScreen() {
         }
 
         // Delete old document and create new one
-        await SuppliesFirestoreService.deleteSupply(initialItem.ProductCode);
-        const updatedItem = { ...item, imageUrl: imageUri || undefined };
+        await SuppliesFirestoreService.deleteSupply(item.ProductCode);
+        const updatedItem = {
+          ...editableItem,
+          ...(imageUri && { imageUrl: imageUri }),
+        };
         await SuppliesFirestoreService.updateSupply(updatedItem, user.email);
       } else {
         // Just update the existing document
-        const updatedItem = { ...item, imageUrl: imageUri || undefined };
+        const updatedItem = {
+          ...editableItem,
+          ...(imageUri && { imageUrl: imageUri }),
+        };
         await SuppliesFirestoreService.updateSupply(updatedItem, user.email);
       }
 
       // Update local store
-      updateSupply(item);
+      updateSupply(editableItem);
 
       Alert.alert("Success! 🎉", "Item details updated successfully", [
         {
@@ -252,8 +275,8 @@ export default function DetailsScreen() {
           text: "Discard",
           style: "destructive",
           onPress: () => {
-            setItem(initialItem);
-            setImageUri(initialItem.imageUrl || null);
+            setEditableItem({ ...item });
+            setImageUri(item.imageUrl || null);
             setIsEditing(false);
             setHasChanges(false);
           },
@@ -344,15 +367,17 @@ export default function DetailsScreen() {
             {isEditing ? (
               <TextInput
                 style={styles.textInput}
-                value={item.ProductCode}
-                onChangeText={(text) => setItem({ ...item, ProductCode: text })}
+                value={editableItem.ProductCode}
+                onChangeText={(text) =>
+                  setEditableItem({ ...editableItem, ProductCode: text })
+                }
                 placeholder="Enter product code"
                 placeholderTextColor={colors.placeholder}
               />
             ) : (
               <View style={styles.fieldValue}>
                 <Typo size={16} style={styles.valueText}>
-                  {item.ProductCode}
+                  {editableItem.ProductCode}
                 </Typo>
               </View>
             )}
@@ -366,9 +391,9 @@ export default function DetailsScreen() {
             {isEditing ? (
               <TextInput
                 style={[styles.textInput, styles.multilineInput]}
-                value={item.ProductDescription}
+                value={editableItem.ProductDescription}
                 onChangeText={(text) =>
-                  setItem({ ...item, ProductDescription: text })
+                  setEditableItem({ ...editableItem, ProductDescription: text })
                 }
                 placeholder="Enter product description"
                 placeholderTextColor={colors.placeholder}
@@ -378,7 +403,7 @@ export default function DetailsScreen() {
             ) : (
               <View style={styles.fieldValue}>
                 <Typo size={16} style={styles.valueText}>
-                  {item.ProductDescription}
+                  {editableItem.ProductDescription}
                 </Typo>
               </View>
             )}
@@ -392,15 +417,17 @@ export default function DetailsScreen() {
             {isEditing ? (
               <TextInput
                 style={styles.textInput}
-                value={item.Category}
-                onChangeText={(text) => setItem({ ...item, Category: text })}
+                value={editableItem.Category}
+                onChangeText={(text) =>
+                  setEditableItem({ ...editableItem, Category: text })
+                }
                 placeholder="Enter category"
                 placeholderTextColor={colors.placeholder}
               />
             ) : (
               <View style={styles.fieldValue}>
                 <Typo size={16} style={styles.valueText}>
-                  {item.Category}
+                  {editableItem.Category}
                 </Typo>
               </View>
             )}
@@ -414,15 +441,17 @@ export default function DetailsScreen() {
             {isEditing ? (
               <TextInput
                 style={styles.textInput}
-                value={item.StoreName}
-                onChangeText={(text) => setItem({ ...item, StoreName: text })}
+                value={editableItem.StoreName}
+                onChangeText={(text) =>
+                  setEditableItem({ ...editableItem, StoreName: text })
+                }
                 placeholder="Enter store location"
                 placeholderTextColor={colors.placeholder}
               />
             ) : (
               <View style={styles.fieldValue}>
                 <Typo size={16} style={styles.valueText}>
-                  {item.StoreName}
+                  {editableItem.StoreName}
                 </Typo>
               </View>
             )}
@@ -436,15 +465,17 @@ export default function DetailsScreen() {
             {isEditing ? (
               <TextInput
                 style={styles.textInput}
-                value={item.UOM}
-                onChangeText={(text) => setItem({ ...item, UOM: text })}
+                value={editableItem.UOM}
+                onChangeText={(text) =>
+                  setEditableItem({ ...editableItem, UOM: text })
+                }
                 placeholder="Enter unit of measure"
                 placeholderTextColor={colors.placeholder}
               />
             ) : (
               <View style={styles.fieldValue}>
                 <Typo size={16} style={styles.valueText}>
-                  {item.UOM}
+                  {editableItem.UOM}
                 </Typo>
               </View>
             )}
@@ -464,12 +495,13 @@ export default function DetailsScreen() {
                   size={16}
                   style={[
                     styles.datePickerText,
-                    !item.expiryDate && styles.datePickerPlaceholder,
-                    isExpired(item.expiryDate) && styles.expiredText,
-                    isNearExpiry(item.expiryDate) && styles.nearExpiryText,
+                    !editableItem.expiryDate && styles.datePickerPlaceholder,
+                    isExpired(editableItem.expiryDate) && styles.expiredText,
+                    isNearExpiry(editableItem.expiryDate) &&
+                      styles.nearExpiryText,
                   ]}
                 >
-                  {formatDate(item.expiryDate)}
+                  {formatDate(editableItem.expiryDate)}
                 </Typo>
                 <Ionicons
                   name="calendar-outline"
@@ -483,13 +515,14 @@ export default function DetailsScreen() {
                   size={16}
                   style={[
                     styles.valueText,
-                    isExpired(item.expiryDate) && styles.expiredText,
-                    isNearExpiry(item.expiryDate) && styles.nearExpiryText,
+                    isExpired(editableItem.expiryDate) && styles.expiredText,
+                    isNearExpiry(editableItem.expiryDate) &&
+                      styles.nearExpiryText,
                   ]}
                 >
-                  {formatDate(item.expiryDate)}
+                  {formatDate(editableItem.expiryDate)}
                 </Typo>
-                {isExpired(item.expiryDate) && (
+                {isExpired(editableItem.expiryDate) && (
                   <View style={styles.expiryWarning}>
                     <Ionicons name="warning" size={16} color={colors.error} />
                     <Typo size={12} style={styles.expiredLabel}>
@@ -497,7 +530,7 @@ export default function DetailsScreen() {
                     </Typo>
                   </View>
                 )}
-                {isNearExpiry(item.expiryDate) && (
+                {isNearExpiry(editableItem.expiryDate) && (
                   <View style={styles.expiryWarning}>
                     <Ionicons name="time" size={16} color={colors.warning} />
                     <Typo size={12} style={styles.nearExpiryLabel}>
@@ -516,7 +549,7 @@ export default function DetailsScreen() {
             </Typo>
             <View style={[styles.fieldValue, styles.readOnlyField]}>
               <Typo size={16} style={[styles.valueText, styles.readOnlyText]}>
-                {item.Store}
+                {editableItem.Store}
               </Typo>
             </View>
           </View>
@@ -552,7 +585,6 @@ export default function DetailsScreen() {
         date={selectedDate || new Date()}
         onConfirm={handleDateChange}
         onCancel={hideDatePickerModal}
-        minimumDate={new Date()}
         textColor={colors.black}
         accentColor={colors.primary}
       />
@@ -760,5 +792,19 @@ const styles = StyleSheet.create({
     color: colors.warning,
     fontWeight: "600",
     fontSize: 10,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacingX._20,
+  },
+  errorText: {
+    color: colors.error,
+    textAlign: "center",
+  },
+  backButtonText: {
+    color: colors.primary,
+    fontWeight: "600",
   },
 });

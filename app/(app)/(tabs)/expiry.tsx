@@ -65,7 +65,9 @@ function Expiry() {
   const handleItemPress = (item: MedicalSupply) => {
     router.push({
       pathname: "/(app)/details",
-      params: { ProductCode: item.ProductCode },
+      params: {
+        productCode: item.ProductCode,
+      },
     });
   };
 

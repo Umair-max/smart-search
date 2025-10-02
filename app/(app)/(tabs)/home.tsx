@@ -61,17 +61,11 @@ function Home() {
   };
 
   const handleItemPress = (item: MedicalSupply) => {
-    // Navigate to details screen with item data as query parameters
+    // Navigate to details screen with only product code
     router.push({
       pathname: "/(app)/details",
       params: {
         productCode: item.ProductCode,
-        productDescription: item.ProductDescription,
-        category: item.Category,
-        store: item.Store.toString(),
-        storeName: item.StoreName,
-        uom: item.UOM,
-        imageUrl: item.imageUrl || "",
       },
     });
   };
