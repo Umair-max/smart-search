@@ -266,7 +266,10 @@ export default function DetailsScreen() {
         }`
       );
     } finally {
-      setIsSaving(false);
+      const timeout = setTimeout(() => {
+        setIsSaving(false);
+      }, 200);
+      return () => clearTimeout(timeout);
     }
   };
 
@@ -327,7 +330,7 @@ export default function DetailsScreen() {
             <Ionicons
               name={isEditing ? "close" : "pencil"}
               size={20}
-              color={isEditing ? colors.error : colors.primary}
+              color={isEditing ? colors.error : colors.black}
             />
           </TouchableOpacity>
         )}
