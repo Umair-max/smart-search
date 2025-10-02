@@ -476,7 +476,7 @@ export default function ImportScreen() {
         ) : (
           <AppButton
             icon={PaperPlaneTiltIcon}
-            iconProps={{ color: colors.black }}
+            iconProps={{ color: isUploading ? colors.black : colors.white }}
             label={
               isUploading
                 ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} items (${uploadProgress.percentage}%)`

@@ -8,13 +8,19 @@ import { spacingX, spacingY } from "@/config/spacing";
 import useSuppliesStore from "@/store/suppliesStore";
 import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  RefreshControl,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import PagerView from "react-native-pager-view";
 
 function Expiry() {
   const [selected, setSelected] = useState<EnumOrderTab>(EnumOrderTab.EXPIRED);
+  const [refreshing, setRefreshing] = useState(false);
   const pagerRef = useRef<PagerView>(null);
-  const { supplies } = useSuppliesStore();
+  const { supplies, fetchFromFirestore } = useSuppliesStore();
 
   /**
    * Check if an item is expired
@@ -69,6 +75,17 @@ function Expiry() {
         productCode: item.ProductCode,
       },
     });
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchFromFirestore();
+    } catch (error) {
+      console.log("Refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -135,6 +152,9 @@ function Expiry() {
             getIsExpired={isExpired}
             emptyTitle="No expired items"
             emptySubtitle="All items are within their expiry dates"
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           />
         </View>
 
@@ -146,6 +166,9 @@ function Expiry() {
             getIsExpired={isExpired}
             emptyTitle="No items near expiry"
             emptySubtitle="All items have sufficient time remaining"
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           />
         </View>
       </PagerView>

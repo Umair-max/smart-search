@@ -3,6 +3,7 @@ import colors from "@/config/colors";
 import { radius, spacingX, spacingY } from "@/config/spacing";
 import { normalizeY } from "@/utils/normalize";
 import { Ionicons } from "@expo/vector-icons";
+import moment from "moment";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -81,6 +82,11 @@ const SupplyCard: React.FC<SupplyCardProps> = ({
               {isExpired ? "EXPIRED" : "NEAR EXPIRY"}
             </Typo>
           </View>
+        )}
+        {showExpiryStatus && (
+          <Typo size={13} style={{ fontWeight: "500" }}>
+            {moment(item.expiryDate).format("MMM D, YYYY")}
+          </Typo>
         )}
       </View>
 
@@ -188,7 +194,7 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontWeight: "500",
     lineHeight: normalizeY(22),
-    marginBottom: spacingY._12,
+    marginBottom: spacingY._5,
   },
   itemFooter: {
     flexDirection: "row",

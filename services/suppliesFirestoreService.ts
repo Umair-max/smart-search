@@ -68,9 +68,26 @@ class SuppliesFirestoreService {
           ProductDescription: data.ProductDescription,
           Category: data.Category,
           UOM: data.UOM,
-          imageUrl: data.imageUrl, // Include image URL
-          expiryDate: data.expiryDate, // Include expiry date
         };
+
+        // Conditionally add optional fields only if they exist and are valid
+        if (
+          data.imageUrl &&
+          data.imageUrl !== undefined &&
+          data.imageUrl !== null &&
+          data.imageUrl !== ""
+        ) {
+          supply.imageUrl = data.imageUrl;
+        }
+
+        if (
+          data.expiryDate &&
+          data.expiryDate !== undefined &&
+          data.expiryDate !== null &&
+          data.expiryDate !== ""
+        ) {
+          supply.expiryDate = data.expiryDate;
+        }
         supplies.push(supply);
       });
 
@@ -215,7 +232,6 @@ class SuppliesFirestoreService {
               ProductDescription: supply.ProductDescription,
               Category: supply.Category,
               UOM: supply.UOM,
-              imageUrl: supply.imageUrl, // Include image URL
               updatedAt: now,
               importedBy: userEmail,
               version: docSnap.exists() ? (docSnap.data().version || 0) + 1 : 1,
@@ -223,6 +239,45 @@ class SuppliesFirestoreService {
                 ? docSnap.data().createdAt || now
                 : now,
             };
+
+            // Debug: Check what properties exist on the supply object
+            console.log(`Processing ${cleanProductCode}:`, {
+              hasImageUrl: supply.hasOwnProperty("imageUrl"),
+              imageUrl: supply.imageUrl,
+              hasExpiryDate: supply.hasOwnProperty("expiryDate"),
+              expiryDate: supply.expiryDate,
+              allKeys: Object.keys(supply),
+            });
+
+            // Conditionally add imageUrl only if it has a valid value and exists
+            if (
+              supply.hasOwnProperty("imageUrl") &&
+              supply.imageUrl &&
+              supply.imageUrl !== undefined &&
+              supply.imageUrl !== null &&
+              supply.imageUrl !== ""
+            ) {
+              supplyData.imageUrl = supply.imageUrl;
+              console.log(
+                `Added imageUrl for ${cleanProductCode}:`,
+                supply.imageUrl
+              );
+            }
+
+            // Conditionally add expiryDate only if it has a valid value and exists
+            if (
+              supply.hasOwnProperty("expiryDate") &&
+              supply.expiryDate &&
+              supply.expiryDate !== undefined &&
+              supply.expiryDate !== null &&
+              supply.expiryDate !== ""
+            ) {
+              supplyData.expiryDate = supply.expiryDate;
+              console.log(
+                `Added expiryDate for ${cleanProductCode}:`,
+                supply.expiryDate
+              );
+            }
 
             if (docSnap.exists()) {
               if (overwriteExisting) {
@@ -342,6 +397,26 @@ class SuppliesFirestoreService {
           Category: data.Category,
           UOM: data.UOM,
         };
+
+        // Conditionally add optional fields only if they exist and are valid
+        if (
+          data.imageUrl &&
+          data.imageUrl !== undefined &&
+          data.imageUrl !== null &&
+          data.imageUrl !== ""
+        ) {
+          supply.imageUrl = data.imageUrl;
+        }
+
+        if (
+          data.expiryDate &&
+          data.expiryDate !== undefined &&
+          data.expiryDate !== null &&
+          data.expiryDate !== ""
+        ) {
+          supply.expiryDate = data.expiryDate;
+        }
+
         return supply;
       }
 
@@ -378,12 +453,41 @@ class SuppliesFirestoreService {
           : new Date().toISOString(),
       };
 
+      // Debug: Check what properties exist on the supply object
+      console.log(`Updating ${supply.ProductCode}:`, {
+        hasImageUrl: supply.hasOwnProperty("imageUrl"),
+        imageUrl: supply.imageUrl,
+        hasExpiryDate: supply.hasOwnProperty("expiryDate"),
+        expiryDate: supply.expiryDate,
+        allKeys: Object.keys(supply),
+      });
+
       // Conditionally add imageUrl only if it has a valid value
       if (supply.imageUrl) {
         supplyData.imageUrl = supply.imageUrl;
+        console.log(
+          `Added imageUrl for ${supply.ProductCode}:`,
+          supply.imageUrl
+        );
+      }
+
+      // Conditionally add expiryDate only if it has a valid value and exists
+      if (
+        supply.hasOwnProperty("expiryDate") &&
+        supply.expiryDate &&
+        supply.expiryDate !== undefined &&
+        supply.expiryDate !== null &&
+        supply.expiryDate !== ""
+      ) {
+        supplyData.expiryDate = supply.expiryDate;
+        console.log(
+          `Added expiryDate for ${supply.ProductCode}:`,
+          supply.expiryDate
+        );
       }
 
       await setDoc(docRef, supplyData);
+      console.log(`Successfully updated ${supply.ProductCode} in Firestore`);
     } catch (error) {
       console.error("Error updating supply:", error);
       throw new Error("Failed to update supply");

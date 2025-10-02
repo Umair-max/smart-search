@@ -229,18 +229,23 @@ export default function DetailsScreen() {
           ...editableItem,
           ...(imageUri && { imageUrl: imageUri }),
         };
+        console.log("Saving updated item (new ProductCode):", updatedItem);
         await SuppliesFirestoreService.updateSupply(updatedItem, user.email);
+
+        // Update local store with the same data sent to Firebase
+        updateSupply(updatedItem);
       } else {
         // Just update the existing document
         const updatedItem = {
           ...editableItem,
           ...(imageUri && { imageUrl: imageUri }),
         };
+        console.log("Saving updated item (existing ProductCode):", updatedItem);
         await SuppliesFirestoreService.updateSupply(updatedItem, user.email);
-      }
 
-      // Update local store
-      updateSupply(editableItem);
+        // Update local store with the same data sent to Firebase
+        updateSupply(updatedItem);
+      }
 
       Alert.alert("Success! 🎉", "Item details updated successfully", [
         {
