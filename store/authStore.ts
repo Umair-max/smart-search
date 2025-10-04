@@ -13,6 +13,7 @@ import UserManagementService, {
   UserProfile,
 } from "../services/userManagementService";
 import { SigninTypes, SignupTypes } from "../types/registerTypes";
+import { isOfflineError } from "../utils/networkUtils";
 import useErrorStore from "./errorStore";
 import useToastStore from "./toastStore";
 
@@ -130,15 +131,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               });
             } catch (error) {
               console.error("Error loading user profile:", error);
-              set({
-                user,
-                userProfile: null,
-                isAuthenticated: true,
-                loading: false,
-                authInitialized: true,
-                processingAuthChange: false,
-                authStateChangeTimeout: null,
-              });
+
+              if (isOfflineError(error)) {
+                console.log("Offline mode: Continuing with basic user info");
+                // In offline mode, create a basic user profile from Firebase Auth data
+                const offlineProfile: UserProfile = {
+                  uid: user.uid,
+                  email: user.email!,
+                  displayName: user.displayName || user.email!.split("@")[0],
+                  role: UserManagementService.isAdminEmail(user.email!)
+                    ? "admin"
+                    : "staff",
+                  permissions: {
+                    canEdit: UserManagementService.isAdminEmail(user.email!),
+                    canUpload: UserManagementService.isAdminEmail(user.email!),
+                    canDelete: UserManagementService.isAdminEmail(user.email!),
+                  },
+                  isBlocked: false,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+
+                set({
+                  user,
+                  userProfile: offlineProfile,
+                  isAuthenticated: true,
+                  loading: false,
+                  authInitialized: true,
+                  processingAuthChange: false,
+                  authStateChangeTimeout: null,
+                });
+              } else {
+                // For non-offline errors, proceed without profile
+                set({
+                  user,
+                  userProfile: null,
+                  isAuthenticated: true,
+                  loading: false,
+                  authInitialized: true,
+                  processingAuthChange: false,
+                  authStateChangeTimeout: null,
+                });
+              }
             }
           } else {
             console.log("Auth state processed: User logged out");

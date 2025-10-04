@@ -12,6 +12,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import FirebaseStorageService from "./firebaseStorageService";
+import MetadataService from "./metadataService";
 
 export interface FirestoreSupply extends MedicalSupply {
   // Metadata for tracking
@@ -376,6 +377,16 @@ class SuppliesFirestoreService {
           });
         }
       }
+
+      // Update global supplies last updated timestamp
+      try {
+        await MetadataService.updateSuppliesLastUpdated();
+        console.log("Updated global supplies metadata timestamp");
+      } catch (metadataError) {
+        console.warn("Failed to update metadata timestamp:", metadataError);
+        // Don't fail the import if metadata update fails
+      }
+
       console.log(
         `Import completed: ${stats.newItems} new, ${stats.updatedItems} updated, ${stats.errors.length} errors`
       );
@@ -579,6 +590,16 @@ class SuppliesFirestoreService {
       }
 
       await setDoc(docRef, supplyData);
+
+      // Update global supplies last updated timestamp
+      try {
+        await MetadataService.updateSuppliesLastUpdated();
+        console.log("Updated global supplies metadata timestamp");
+      } catch (metadataError) {
+        console.warn("Failed to update metadata timestamp:", metadataError);
+        // Don't fail the update if metadata update fails
+      }
+
       console.log(`Successfully updated ${supply.ProductCode} in Firestore`);
     } catch (error) {
       console.error("Error updating supply:", error);
@@ -614,6 +635,18 @@ class SuppliesFirestoreService {
 
       // Delete the Firestore document
       await deleteDoc(docRef);
+
+      // Update global supplies last updated timestamp
+      try {
+        await MetadataService.updateSuppliesLastUpdated();
+        console.log(
+          "Updated global supplies metadata timestamp after deletion"
+        );
+      } catch (metadataError) {
+        console.warn("Failed to update metadata timestamp:", metadataError);
+        // Don't fail the deletion if metadata update fails
+      }
+
       console.log(`Supply ${productCode} deleted successfully`);
     } catch (error) {
       console.error("Error deleting supply:", error);

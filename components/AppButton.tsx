@@ -24,6 +24,7 @@ interface AppButtonProps {
   disabled?: boolean;
   icon?: Icon;
   iconProps?: IconProps;
+  loadingColor?: string;
 }
 
 const AppButton: React.FC<AppButtonProps> = ({
@@ -36,6 +37,7 @@ const AppButton: React.FC<AppButtonProps> = ({
   disabled = false,
   icon: Icon,
   iconProps,
+  loadingColor,
 }) => {
   const isPrimary = varient == "primary";
   const isDisabled = loading || disabled;
@@ -76,7 +78,9 @@ const AppButton: React.FC<AppButtonProps> = ({
       >
         {label}
       </Typo>
-      {loading && <ActivityIndicator color={textColor} />}
+      {loading && (
+        <ActivityIndicator color={loadingColor ? loadingColor : textColor} />
+      )}
     </TouchableOpacity>
   );
 };

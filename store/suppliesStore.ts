@@ -1,5 +1,8 @@
 import { MedicalSupply } from "@/components/SupplyCard";
+import MetadataService from "@/services/metadataService";
 import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
+import UserManagementService from "@/services/userManagementService";
+import { isOfflineError } from "@/utils/networkUtils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -22,6 +25,7 @@ interface SuppliesStore {
 
   // Firestore sync
   fetchFromFirestore: () => Promise<void>;
+  smartFetchSupplies: (userId: string) => Promise<void>; // New smart fetch method
   syncToFirestore: (
     supplies: MedicalSupply[],
     userEmail: string
@@ -82,12 +86,19 @@ const useSuppliesStore = create<SuppliesStore>()(
       },
 
       removeSupply: (productCode) => {
-        set((state) => ({
-          supplies: state.supplies.filter(
+        console.log(`SuppliesStore: Removing supply ${productCode}`);
+        set((state) => {
+          const newSupplies = state.supplies.filter(
             (supply) => supply.ProductCode !== productCode
-          ),
-          lastSyncDate: new Date().toISOString(),
-        }));
+          );
+          console.log(
+            `SuppliesStore: Removed supply, ${newSupplies.length} supplies remaining`
+          );
+          return {
+            supplies: newSupplies,
+            lastSyncDate: new Date().toISOString(),
+          };
+        });
       },
 
       clearAllSupplies: () => {
@@ -132,6 +143,141 @@ const useSuppliesStore = create<SuppliesStore>()(
           setOnlineStatus(false);
           // Don't clear data on error, keep existing data
           throw error;
+        } finally {
+          setLoading(false);
+        }
+      },
+
+      smartFetchSupplies: async (userId: string) => {
+        const { setLoading, setSupplies, setOnlineStatus, supplies } = get();
+
+        try {
+          setLoading(true);
+          setOnlineStatus(true);
+
+          // Get user's last fetched timestamp
+          const userLastFetched =
+            await UserManagementService.getSuppliesLastFetched(userId);
+          console.log(`User last fetched supplies at:`, userLastFetched);
+
+          // Check current local data count
+          const hasLocalData = supplies.length > 0;
+          console.log(
+            `Has local persisted data: ${hasLocalData} (${supplies.length} items)`
+          );
+
+          // If user has never fetched AND we have local data, they probably have persisted data
+          if (!userLastFetched && hasLocalData) {
+            console.log(
+              "First launch but have persisted data - initializing metadata"
+            );
+
+            // Try to initialize metadata, but don't fail if offline
+            try {
+              await MetadataService.initializeSuppliesMetadata();
+              await UserManagementService.updateSuppliesLastFetched(userId);
+              console.log("Metadata initialized successfully");
+            } catch (metadataError) {
+              if (isOfflineError(metadataError)) {
+                console.log(
+                  "Offline mode: Skipping metadata initialization, using local data"
+                );
+              } else {
+                console.warn("Failed to initialize metadata:", metadataError);
+              }
+            }
+
+            console.log("Using persisted data - no fetch needed");
+            setLoading(false); // Ensure loading is stopped when using cached data
+            return;
+          }
+
+          // Check if refresh is needed by comparing timestamps
+          const needsRefresh = await MetadataService.shouldRefreshSupplies(
+            userLastFetched
+          );
+          console.log(`Supplies need refresh:`, needsRefresh);
+
+          // Only fetch if we need refresh OR have no local data
+          if (needsRefresh || !hasLocalData) {
+            try {
+              console.log("Fetching fresh supplies data from Firestore...");
+
+              // Fetch fresh data from Firestore
+              const freshSupplies =
+                await SuppliesFirestoreService.fetchAllSupplies();
+
+              // Update local data
+              setSupplies(freshSupplies);
+
+              // Update user's last fetched timestamp
+              await UserManagementService.updateSuppliesLastFetched(userId);
+
+              console.log(
+                `Fetched ${freshSupplies.length} supplies from Firestore - data refreshed`
+              );
+            } catch (fetchError) {
+              if (isOfflineError(fetchError)) {
+                console.log(
+                  "Offline mode: Cannot fetch, using local data if available"
+                );
+                setOnlineStatus(false);
+
+                if (hasLocalData) {
+                  console.log("Using cached data in offline mode");
+                  setLoading(false); // Stop loading before return
+                  return; // Keep existing local data
+                } else {
+                  console.log("No local data available in offline mode");
+                  // Let it continue to show empty state
+                }
+              } else {
+                throw fetchError; // Re-throw non-offline errors
+              }
+            }
+          } else {
+            console.log("Using cached supplies data - no refresh needed");
+            // Data is already loaded from persistence, no need to fetch
+            setLoading(false); // Ensure loading is stopped when using cached data
+          }
+        } catch (error) {
+          console.error("Failed to smart fetch supplies:", error);
+
+          if (isOfflineError(error)) {
+            console.log("Smart fetch failed due to offline mode");
+            setOnlineStatus(false);
+
+            // If we have local data, use it; otherwise show empty state
+            if (supplies.length > 0) {
+              console.log("Using existing local data in offline mode");
+            } else {
+              console.log("No local data available for offline mode");
+            }
+            // Important: Stop loading when in offline mode with local data
+            setLoading(false);
+          } else {
+            // For non-offline errors, try fallback
+            setOnlineStatus(false);
+            console.log(
+              "Smart fetch failed with non-offline error, trying fallback..."
+            );
+
+            try {
+              const fallbackSupplies =
+                await SuppliesFirestoreService.fetchAllSupplies();
+              setSupplies(fallbackSupplies);
+              console.log("Fallback fetch succeeded");
+            } catch (fallbackError) {
+              console.error("Fallback fetch also failed:", fallbackError);
+              if (isOfflineError(fallbackError)) {
+                console.log(
+                  "Fallback also failed due to offline - using local data"
+                );
+              } else {
+                throw fallbackError;
+              }
+            }
+          }
         } finally {
           setLoading(false);
         }

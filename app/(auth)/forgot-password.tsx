@@ -62,7 +62,7 @@ function ForgotPassword() {
         <AppButton
           onPress={handleSubmit(onSubmit)}
           loading={loading}
-          label={"Send OTP"}
+          label={"Send"}
         />
       </View>
     </ScreenComponent>

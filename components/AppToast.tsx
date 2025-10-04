@@ -63,14 +63,12 @@ function AppToast() {
         { backgroundColor: isCopyMessage ? colors.transparent : colors.white },
       ]}
     >
-      {isCopyMessage && (
-        <BlurView
-          style={[
-            StyleSheet.absoluteFillObject,
-            { borderWidth: 0.5, borderColor: "rgba(255,255,255,0.5)" },
-          ]}
-        />
-      )}
+      <BlurView
+        style={[
+          StyleSheet.absoluteFillObject,
+          { borderWidth: 0.5, borderColor: "rgba(255,255,255,0.5)" },
+        ]}
+      />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
         colors={["rgba(0,0,0,0.1)", "rgba(255,255,255,0)"]}

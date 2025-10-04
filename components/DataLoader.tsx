@@ -13,22 +13,22 @@ interface DataLoaderProps {
 
 const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
   const { user } = useAuthStore();
-  const { fetchFromFirestore, supplies, isLoading } = useSuppliesStore();
+  const { smartFetchSupplies, isLoading } = useSuppliesStore();
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { top: safeTop } = useSafeAreaInsets();
 
   useEffect(() => {
     const loadInitialData = async () => {
-      if (!user) {
+      if (!user?.uid) {
         setInitialLoadCompleted(true);
         return;
       }
 
       try {
-        console.log("DataLoader: Fetching fresh data from Firebase...");
-        await fetchFromFirestore();
-        console.log("DataLoader: Initial data fetch completed");
+        console.log("DataLoader: Using smart fetch for data optimization...");
+        await smartFetchSupplies(user.uid);
+        console.log("DataLoader: Smart fetch completed");
       } catch (error) {
         console.error("DataLoader: Failed to fetch initial data:", error);
         setError("Failed to load data from server");
@@ -38,10 +38,11 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
     };
 
     loadInitialData();
-  }, [user, fetchFromFirestore]);
+  }, [user?.uid, smartFetchSupplies]);
 
-  // Show loading screen only on first app launch with no local data
-  if (!initialLoadCompleted && supplies.length === 0 && isLoading) {
+  // Show loading screen only during initial load
+  // Don't depend on supplies.length to prevent re-renders during data changes
+  if (!initialLoadCompleted && isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -56,16 +57,7 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
   }
 
   if (error) {
-    return (
-      <View style={styles.container}>
-        {/* <View style={[styles.errorBanner, { top: safeTop }]}>
-          <Typo size={12} style={styles.errorText}>
-            {error}
-          </Typo>
-        </View> */}
-        {children}
-      </View>
-    );
+    return <View style={styles.container}>{children}</View>;
   }
 
   return <>{children}</>;

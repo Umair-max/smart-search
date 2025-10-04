@@ -1,11 +1,13 @@
 import CustomBottomTab from "@/components/CustomBottomTab";
 import DataLoader from "@/components/DataLoader";
+import OfflineIndicator from "@/components/OfflineIndicator";
 import { Tabs } from "expo-router";
 import React from "react";
 
 export default function Layout() {
   return (
     <DataLoader>
+      <OfflineIndicator />
       <Tabs
         initialRouteName="home"
         screenOptions={{ headerShown: false, animation: "none" }}

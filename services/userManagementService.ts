@@ -1,5 +1,6 @@
 import ConfigService from "@/config/appConfig";
 import { db } from "@/config/firebase";
+import { safeFirestoreOperation } from "@/utils/networkUtils";
 import {
   collection,
   doc,
@@ -27,6 +28,7 @@ export interface UserProfile {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
+  suppliesLastFetched?: string; // New field for tracking when user last fetched supplies
 }
 
 class UserManagementService {
@@ -54,98 +56,127 @@ class UserManagementService {
     email: string,
     displayName?: string
   ): Promise<UserProfile> {
-    try {
-      const userRef = doc(db, this.COLLECTION_NAME, uid);
-      const userSnap = await getDoc(userRef);
+    return safeFirestoreOperation(
+      async () => {
+        const userRef = doc(db, this.COLLECTION_NAME, uid);
+        const userSnap = await getDoc(userRef);
 
-      const now = new Date().toISOString();
-      const isAdmin = this.isAdminEmail(email);
+        const now = new Date().toISOString();
+        const isAdmin = this.isAdminEmail(email);
 
-      if (userSnap.exists()) {
-        // Update existing user
-        const userData = userSnap.data() as UserProfile;
+        if (userSnap.exists()) {
+          // Update existing user
+          const userData = userSnap.data() as UserProfile;
 
-        const updatedUser: Partial<UserProfile> = {
-          lastLoginAt: now,
-          updatedAt: now,
-        };
+          const updatedUser: Partial<UserProfile> = {
+            lastLoginAt: now,
+            updatedAt: now,
+          };
 
-        // Update display name if provided
-        if (displayName && displayName !== userData.displayName) {
-          updatedUser.displayName = displayName;
+          // Update display name if provided
+          if (displayName && displayName !== userData.displayName) {
+            updatedUser.displayName = displayName;
+          }
+
+          await updateDoc(userRef, updatedUser);
+
+          return {
+            ...userData,
+            ...updatedUser,
+          } as UserProfile;
+        } else {
+          // Create new user
+          const newUser: UserProfile = {
+            uid,
+            email,
+            displayName: displayName || email.split("@")[0],
+            role: isAdmin ? "admin" : "staff",
+            permissions: {
+              canEdit: isAdmin, // Admin gets edit permission by default
+              canUpload: isAdmin, // Admin gets upload permission by default
+              canDelete: isAdmin, // Admin gets delete permission by default
+            },
+            isBlocked: false,
+            createdAt: now,
+            updatedAt: now,
+            lastLoginAt: now,
+          };
+
+          await setDoc(userRef, newUser);
+          return newUser;
         }
-
-        await updateDoc(userRef, updatedUser);
+      },
+      () => {
+        // Offline fallback - create a basic user profile from provided data
+        console.log(
+          "createOrUpdateUser: Offline mode - creating basic profile"
+        );
+        const isAdmin = this.isAdminEmail(email);
 
         return {
-          ...userData,
-          ...updatedUser,
-        } as UserProfile;
-      } else {
-        // Create new user
-        const newUser: UserProfile = {
           uid,
           email,
           displayName: displayName || email.split("@")[0],
           role: isAdmin ? "admin" : "staff",
           permissions: {
-            canEdit: isAdmin, // Admin gets edit permission by default
-            canUpload: isAdmin, // Admin gets upload permission by default
-            canDelete: isAdmin, // Admin gets delete permission by default
+            canEdit: isAdmin,
+            canUpload: isAdmin,
+            canDelete: isAdmin,
           },
           isBlocked: false,
-          createdAt: now,
-          updatedAt: now,
-          lastLoginAt: now,
-        };
-
-        await setDoc(userRef, newUser);
-        return newUser;
-      }
-    } catch (error) {
-      console.error("Error creating/updating user:", error);
-      throw new Error("Failed to create or update user profile");
-    }
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+        } as UserProfile;
+      },
+      "Create or update user profile"
+    );
   }
 
   /**
    * Get user profile by UID
    */
   static async getUserProfile(uid: string): Promise<UserProfile | null> {
-    try {
-      const userRef = doc(db, this.COLLECTION_NAME, uid);
-      const userSnap = await getDoc(userRef);
+    return safeFirestoreOperation(
+      async () => {
+        const userRef = doc(db, this.COLLECTION_NAME, uid);
+        const userSnap = await getDoc(userRef);
 
-      if (userSnap.exists()) {
-        const userData = userSnap.data() as any; // Use any to handle migration
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as any;
 
-        // Ensure permissions object has all required fields (migration for existing users)
-        const permissions = {
-          canEdit: userData.permissions?.canEdit ?? false,
-          canUpload: userData.permissions?.canUpload ?? false,
-          canDelete:
-            userData.permissions?.canDelete ?? userData.role === "admin", // Default to true for admins
-        };
+          // Ensure permissions object has all required fields
+          const permissions = {
+            canEdit: userData.permissions?.canEdit ?? false,
+            canUpload: userData.permissions?.canUpload ?? false,
+            canDelete:
+              userData.permissions?.canDelete ?? userData.role === "admin",
+          };
 
-        return {
-          uid: userData.uid,
-          email: userData.email,
-          displayName: userData.displayName,
-          profileImageUrl: userData.profileImageUrl,
-          role: userData.role,
-          permissions,
-          isBlocked: userData.isBlocked ?? false,
-          createdAt: userData.createdAt,
-          updatedAt: userData.updatedAt,
-          lastLoginAt: userData.lastLoginAt,
-        } as UserProfile;
-      }
+          return {
+            uid: userData.uid,
+            email: userData.email,
+            displayName: userData.displayName,
+            profileImageUrl: userData.profileImageUrl,
+            role: userData.role,
+            permissions,
+            isBlocked: userData.isBlocked ?? false,
+            createdAt: userData.createdAt,
+            updatedAt: userData.updatedAt,
+            lastLoginAt: userData.lastLoginAt,
+            suppliesLastFetched: userData.suppliesLastFetched,
+          } as UserProfile;
+        }
 
-      return null;
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      throw new Error("Failed to fetch user profile");
-    }
+        return null;
+      },
+      () => {
+        // Offline fallback - return null, let auth store handle it
+        console.log("getUserProfile: Offline mode - returning null");
+        return null;
+      },
+      "Get user profile"
+    );
   }
 
   /**
@@ -346,6 +377,49 @@ class UserManagementService {
    */
   static isBlocked(userProfile: UserProfile): boolean {
     return userProfile.isBlocked;
+  }
+
+  /**
+   * Update user's supplies last fetched timestamp
+   */
+  static async updateSuppliesLastFetched(uid: string): Promise<void> {
+    return safeFirestoreOperation(
+      async () => {
+        const userRef = doc(db, this.COLLECTION_NAME, uid);
+        await updateDoc(userRef, {
+          suppliesLastFetched: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      },
+      () => {
+        // Offline fallback - do nothing, will sync when online
+        console.log(
+          "updateSuppliesLastFetched: Offline mode - skipping update"
+        );
+      },
+      "Update supplies last fetched timestamp"
+    );
+  }
+
+  /**
+   * Get user's supplies last fetched timestamp
+   */
+  static async getSuppliesLastFetched(uid: string): Promise<Date | null> {
+    return safeFirestoreOperation(
+      async () => {
+        const userProfile = await this.getUserProfile(uid);
+        if (userProfile?.suppliesLastFetched) {
+          return new Date(userProfile.suppliesLastFetched);
+        }
+        return null;
+      },
+      () => {
+        // Offline fallback - return null to indicate no timestamp
+        console.log("getSuppliesLastFetched: Offline mode - returning null");
+        return null;
+      },
+      "Get supplies last fetched timestamp"
+    );
   }
 }
 

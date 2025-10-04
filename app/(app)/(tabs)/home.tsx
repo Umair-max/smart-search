@@ -4,11 +4,12 @@ import { MedicalSupply } from "@/components/SupplyCard";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { height, radius, spacingX, spacingY } from "@/config/spacing";
+import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
 import { normalizeY } from "@/utils/normalize";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -22,15 +23,21 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
+  const { user } = useAuthStore();
+
   const {
     supplies,
     isLoading,
+    isOnline,
     searchSupplies,
     fetchFromFirestore,
+    smartFetchSupplies,
     getTotalCount,
     lastSyncDate,
     clearAllSupplies,
   } = useSuppliesStore();
+
+  // No need for useFocusEffect here since DataLoader handles initial fetch
 
   const allSupplies = useMemo(() => {
     return supplies;
@@ -45,16 +52,20 @@ function Home() {
     return results;
   }, [searchQuery, allSupplies, searchSupplies]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetchFromFirestore();
+      if (user?.uid) {
+        await smartFetchSupplies(user.uid);
+      } else {
+        await fetchFromFirestore();
+      }
     } catch (error) {
       console.log("Refresh failed");
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [user?.uid, smartFetchSupplies, fetchFromFirestore]);
 
   const clearSearch = () => {
     setSearchQuery("");
@@ -71,7 +82,8 @@ function Home() {
   };
 
   const renderContent = () => {
-    if (isLoading && allSupplies.length === 0) {
+    // Only show loading on initial app launch, not during operations
+    if (isLoading && allSupplies.length === 0 && !lastSyncDate) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -165,7 +177,7 @@ function Home() {
             )}
           </View>
 
-          {isLoading && (
+          {isLoading && isOnline && (
             <ActivityIndicator size="small" color={colors.primary} />
           )}
         </View>

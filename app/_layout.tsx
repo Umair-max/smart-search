@@ -13,7 +13,6 @@ export default function RootLayout() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
   useEffect(() => {
-    // Initialize Firebase auth listener on app start
     initializeAuth();
   }, [initializeAuth]);
 
@@ -21,7 +20,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={DefaultTheme}>
         <BottomSheetModalProvider>
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false, animation: "none" }} />
           <StatusBar style="auto" />
           <AppToast />
           <AppAlert />

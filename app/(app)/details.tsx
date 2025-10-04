@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -22,6 +22,7 @@ import { radius, spacingX, spacingY, width } from "@/config/spacing";
 import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
 import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
+import useToastStore from "@/store/toastStore";
 import { normalizeY } from "@/utils/normalize";
 import { Image } from "expo-image";
 
@@ -31,6 +32,9 @@ export default function DetailsScreen() {
   const params = useLocalSearchParams();
   const { user, canEdit, isBlocked, isAdmin, canDelete } = useAuthStore();
   const { supplies, updateSupply, removeSupply } = useSuppliesStore();
+  const { showToast } = useToastStore();
+  // Track component mount status to prevent navigation after unmount
+  const isMountedRef = useRef(true);
 
   // Get product code from params
   const productCode = (params.productCode as string) || "";
@@ -39,6 +43,43 @@ export default function DetailsScreen() {
   const item = supplies.find((s) => s.ProductCode === productCode);
 
   // If item not found, show error or go back
+
+  // State management
+  const [imageUri, setImageUri] = useState<string | null>(
+    item?.imageUrl || null
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    item?.expiryDate ? new Date(item.expiryDate) : undefined
+  );
+
+  // Create editable item state
+  const [editableItem, setEditableItem] = useState<MedicalSupply>(
+    item ? { ...item } : ({} as MedicalSupply)
+  );
+
+  // Track changes
+  useEffect(() => {
+    if (!item) {
+      return;
+    }
+
+    const hasItemChanges =
+      editableItem.ProductCode !== item.ProductCode ||
+      editableItem.ProductDescription !== item.ProductDescription ||
+      editableItem.Category !== item.Category ||
+      editableItem.StoreName !== item.StoreName ||
+      editableItem.UOM !== item.UOM ||
+      editableItem.expiryDate !== item.expiryDate ||
+      imageUri !== (item.imageUrl || null);
+
+    setHasChanges(hasItemChanges);
+  }, [editableItem, imageUri, item]);
+
   if (!item) {
     return (
       <ScreenComponent style={styles.container}>
@@ -58,35 +99,6 @@ export default function DetailsScreen() {
       </ScreenComponent>
     );
   }
-
-  // State management
-  const [imageUri, setImageUri] = useState<string | null>(
-    item.imageUrl || null
-  );
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    item.expiryDate ? new Date(item.expiryDate) : undefined
-  );
-
-  // Create editable item state
-  const [editableItem, setEditableItem] = useState<MedicalSupply>({ ...item });
-
-  // Track changes
-  useEffect(() => {
-    const hasItemChanges =
-      editableItem.ProductCode !== item.ProductCode ||
-      editableItem.ProductDescription !== item.ProductDescription ||
-      editableItem.Category !== item.Category ||
-      editableItem.StoreName !== item.StoreName ||
-      editableItem.UOM !== item.UOM ||
-      editableItem.expiryDate !== item.expiryDate ||
-      imageUri !== (item.imageUrl || null);
-
-    setHasChanges(hasItemChanges);
-  }, [editableItem, imageUri, item]);
 
   const handleImagePick = async () => {
     try {
@@ -304,19 +316,14 @@ export default function DetailsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
+            setIsDeleting(true);
             try {
-              console.log(`Deleting supply: ${item.ProductCode}`);
               await SuppliesFirestoreService.deleteSupply(item.ProductCode);
-
-              // Remove from local store
+              router.back();
+              showToast(
+                `Item "${item.ProductDescription}" deleted successfully.`
+              );
               removeSupply(item.ProductCode);
-
-              Alert.alert("Success", "Item deleted successfully", [
-                {
-                  text: "OK",
-                  onPress: () => router.back(),
-                },
-              ]);
             } catch (error) {
               console.error("Error deleting supply:", error);
               Alert.alert(
@@ -325,6 +332,8 @@ export default function DetailsScreen() {
                   error instanceof Error ? error.message : "Unknown error"
                 }`
               );
+            } finally {
+              setIsDeleting(false);
             }
           },
         },
@@ -617,15 +626,16 @@ export default function DetailsScreen() {
             </TouchableOpacity>
 
             {canDelete() && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.deleteButton]}
+              <AppButton
+                label={isDeleting ? "Deleting" : "Delete"}
                 onPress={handleDelete}
-                disabled={isSaving}
-              >
-                <Typo size={16} style={styles.deleteButtonText}>
-                  Delete
-                </Typo>
-              </TouchableOpacity>
+                loading={isDeleting}
+                disabled={isSaving || isDeleting}
+                varient="primary"
+                loadingColor="white"
+                style={[styles.actionButton, { backgroundColor: colors.error }]}
+                textStyle={styles.deleteButtonText}
+              />
             )}
 
             <AppButton
