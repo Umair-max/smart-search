@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
+import FirebaseStorageService from "./firebaseStorageService";
 
 export interface UserProfile {
   uid: string;
@@ -188,14 +189,60 @@ class UserManagementService {
    */
   static async updateProfileImage(
     uid: string,
-    profileImageUrl: string
+    imageUri: string
   ): Promise<void> {
     try {
+      console.log(`Starting profile image update for user ${uid}`);
+      console.log(`Image URI: ${imageUri}`);
+
+      // First, get the current user profile to check for existing image
       const userRef = doc(db, this.COLLECTION_NAME, uid);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) {
+        throw new Error("User profile not found");
+      }
+
+      const currentUserData = userSnap.data() as UserProfile;
+      console.log(`Current user profile:`, {
+        hasProfileImage: !!currentUserData.profileImageUrl,
+        profileImageUrl: currentUserData.profileImageUrl,
+      });
+
+      // Upload new image to Firebase Storage
+      console.log(`Uploading new image to Firebase Storage...`);
+      const downloadURL = await FirebaseStorageService.uploadProfileImage(
+        uid,
+        imageUri
+      );
+      console.log(`New image uploaded, download URL: ${downloadURL}`);
+
+      // Delete old image from storage if it exists
+      if (currentUserData.profileImageUrl) {
+        console.log(
+          `Attempting to delete old image: ${currentUserData.profileImageUrl}`
+        );
+        try {
+          await FirebaseStorageService.deleteProfileImage(
+            currentUserData.profileImageUrl
+          );
+          console.log("Old profile image deleted from storage");
+        } catch (deleteError) {
+          console.warn("Failed to delete old profile image:", deleteError);
+          // Don't fail the update if old image deletion fails
+        }
+      } else {
+        console.log("No old image to delete");
+      }
+
+      // Update Firestore with the new download URL
+      console.log(`Updating Firestore with new image URL...`);
       await updateDoc(userRef, {
-        profileImageUrl,
+        profileImageUrl: downloadURL,
         updatedAt: new Date().toISOString(),
       });
+
+      console.log(`Profile image updated successfully for user ${uid}`);
     } catch (error) {
       console.error("Error updating profile image:", error);
       throw new Error("Failed to update profile image");

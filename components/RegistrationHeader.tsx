@@ -18,7 +18,6 @@ function RegistrationHeader({}: Props) {
           height: normalizeY(110),
           width: normalizeY(110),
           overflow: "hidden",
-          backgroundColor: "red",
         }}
       >
         <Image

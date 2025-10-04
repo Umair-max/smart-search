@@ -130,12 +130,18 @@ function ProfileScreen() {
         );
       }
 
+      console.log("Uploading image to Firebase Storage...");
       await updateUserProfile({ profileImageUrl: compressedResult.uri });
 
       Alert.alert("Success", "Profile picture updated successfully!");
     } catch (error) {
       console.error("Error uploading image:", error);
-      Alert.alert("Error", "Failed to update profile picture");
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "Failed to update profile picture"
+      );
     } finally {
       setIsUploadingImage(false);
     }

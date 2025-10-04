@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface DataLoaderProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
   const { fetchFromFirestore, supplies, isLoading } = useSuppliesStore();
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { top: safeTop } = useSafeAreaInsets();
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -56,11 +58,11 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
   if (error) {
     return (
       <View style={styles.container}>
-        <View style={styles.errorBanner}>
+        {/* <View style={[styles.errorBanner, { top: safeTop }]}>
           <Typo size={12} style={styles.errorText}>
             {error}
           </Typo>
-        </View>
+        </View> */}
         {children}
       </View>
     );
@@ -92,6 +94,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacingY._8,
     paddingHorizontal: spacingY._15,
     alignItems: "center",
+    position: "absolute",
+    width: "100%",
+    zIndex: 1,
   },
   errorText: {
     color: colors.red,
