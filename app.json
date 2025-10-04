@@ -19,7 +19,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.RECORD_AUDIO"],
+      "package": "com.smartsearch"
     },
     "web": {
       "output": "static",
@@ -45,11 +47,18 @@
           "photosPermission": "The app accesses your photos to let you share them.",
           "cameraPermission": "The app accesses your camera to let you take photos."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a91ef4bb-210a-444b-92b6-52a0f0a45338"
+      }
     }
   }
 }
