@@ -1,4 +1,5 @@
 import AppAlert from "@/components/AppAlert";
+import AppLayerProvider from "@/components/AppLayerProvider";
 import AppToast from "@/components/AppToast";
 import { useAuthStore } from "@/store/authStore";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -18,14 +19,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={DefaultTheme}>
-        <BottomSheetModalProvider>
-          <Stack screenOptions={{ headerShown: false, animation: "none" }} />
-          <StatusBar style="auto" />
-          <AppToast />
-          <AppAlert />
-        </BottomSheetModalProvider>
-      </ThemeProvider>
+      <AppLayerProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <BottomSheetModalProvider>
+            <Stack screenOptions={{ headerShown: false, animation: "none" }} />
+            <StatusBar style="auto" />
+            <AppToast />
+            <AppAlert />
+          </BottomSheetModalProvider>
+        </ThemeProvider>
+      </AppLayerProvider>
     </GestureHandlerRootView>
   );
 }

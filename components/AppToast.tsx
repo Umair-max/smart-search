@@ -56,22 +56,16 @@ function AppToast() {
   });
 
   return (
-    <Animated.View
-      style={[
-        styles.toastContainer,
-        animatedStyle,
-        { backgroundColor: isCopyMessage ? colors.transparent : colors.white },
-      ]}
-    >
+    <Animated.View style={[styles.toastContainer, animatedStyle]}>
       <BlurView
         style={[
           StyleSheet.absoluteFillObject,
-          { borderWidth: 0.5, borderColor: "rgba(255,255,255,0.5)" },
+          { borderWidth: 0.5, borderColor: "rgba(255,255,255,0.9)" },
         ]}
       />
       <LinearGradient
         style={StyleSheet.absoluteFillObject}
-        colors={["rgba(0,0,0,0.1)", "rgba(255,255,255,0)"]}
+        colors={["rgba(0,0,0,0.2)", "rgba(0,0,0,0.1)"]}
         start={{ x: 0, y: 1 }}
         end={{ x: 1, y: 1 }}
       />

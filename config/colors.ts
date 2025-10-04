@@ -18,4 +18,7 @@ export default {
   lightPurple: "#faf5ff",
   warning: "#FF9500",
   lightWarning: "#fff4e6",
+  orange: "#FF5E0E",
+  green: "#008000",
+  blue: "#0000FF",
 };

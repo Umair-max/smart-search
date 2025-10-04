@@ -5,6 +5,7 @@ import { MedicalSupply } from "@/components/SupplyCard";
 import Typo from "@/components/Typo";
 import colors from "@/config/colors";
 import { spacingX, spacingY } from "@/config/spacing";
+import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
 import { router } from "expo-router";
 import React, { useMemo, useRef, useState } from "react";
@@ -20,7 +21,9 @@ function Expiry() {
   const [selected, setSelected] = useState<EnumOrderTab>(EnumOrderTab.EXPIRED);
   const [refreshing, setRefreshing] = useState(false);
   const pagerRef = useRef<PagerView>(null);
-  const { supplies, fetchFromFirestore } = useSuppliesStore();
+  const { supplies, fetchFromFirestore, isOnline, smartFetchSupplies } =
+    useSuppliesStore();
+  const { user } = useAuthStore();
 
   /**
    * Check if an item is expired
@@ -78,9 +81,20 @@ function Expiry() {
   };
 
   const onRefresh = async () => {
+    if (!isOnline) {
+      // In offline mode, just refresh the UI without network call
+      setRefreshing(true);
+      setTimeout(() => setRefreshing(false), 500);
+      return;
+    }
+
     setRefreshing(true);
     try {
-      await fetchFromFirestore();
+      if (user?.uid) {
+        await smartFetchSupplies(user.uid);
+      } else {
+        await fetchFromFirestore();
+      }
     } catch (error) {
       console.log("Refresh failed");
     } finally {

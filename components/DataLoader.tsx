@@ -5,7 +5,6 @@ import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface DataLoaderProps {
   children: React.ReactNode;
@@ -13,10 +12,8 @@ interface DataLoaderProps {
 
 const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
   const { user } = useAuthStore();
-  const { smartFetchSupplies, isLoading } = useSuppliesStore();
+  const { smartFetchSupplies, isLoading, isOnline } = useSuppliesStore();
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { top: safeTop } = useSafeAreaInsets();
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -31,8 +28,10 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
         console.log("DataLoader: Smart fetch completed");
       } catch (error) {
         console.error("DataLoader: Failed to fetch initial data:", error);
-        setError("Failed to load data from server");
+        // Don't set error state for offline mode - just complete the load
+        // The app will use cached data
       } finally {
+        // Always mark as completed, even on error, so offline users can proceed
         setInitialLoadCompleted(true);
       }
     };
@@ -40,9 +39,9 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
     loadInitialData();
   }, [user?.uid, smartFetchSupplies]);
 
-  // Show loading screen only during initial load
-  // Don't depend on supplies.length to prevent re-renders during data changes
-  if (!initialLoadCompleted && isLoading) {
+  // Show loading screen only during initial load AND when online
+  // If offline, skip loading and use cached data
+  if (!initialLoadCompleted && isLoading && isOnline) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -56,17 +55,11 @@ const DataLoader: React.FC<DataLoaderProps> = ({ children }) => {
     );
   }
 
-  if (error) {
-    return <View style={styles.container}>{children}</View>;
-  }
-
+  // If initial load is completed or user is offline, show children
   return <>{children}</>;
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -80,19 +73,6 @@ const styles = StyleSheet.create({
   },
   loadingSubtext: {
     color: colors.textGray,
-  },
-  errorBanner: {
-    backgroundColor: colors.lightRed,
-    paddingVertical: spacingY._8,
-    paddingHorizontal: spacingY._15,
-    alignItems: "center",
-    position: "absolute",
-    width: "100%",
-    zIndex: 1,
-  },
-  errorText: {
-    color: colors.red,
-    fontWeight: "500",
   },
 });
 

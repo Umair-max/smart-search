@@ -5,6 +5,7 @@ import { radius, spacingX, spacingY } from "@/config/spacing";
 import ImageCompressionService from "@/services/imageCompressionService";
 import useAlertStore from "@/store/alertStore";
 import { useAuthStore } from "@/store/authStore";
+import useSuppliesStore from "@/store/suppliesStore";
 import { normalizeY } from "@/utils/normalize";
 import {
   AntDesign,
@@ -37,9 +38,19 @@ function ProfileScreen() {
     isAdmin,
     canUpload,
   } = useAuthStore();
+  const { isOnline } = useSuppliesStore();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleProfileImagePress = () => {
+    if (!isOnline) {
+      Alert.alert(
+        "Offline Mode",
+        "Profile picture upload is not available while offline. Please connect to the internet and try again.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     Alert.alert(
       "Profile Picture",
       "Choose how you'd like to update your profile picture:",

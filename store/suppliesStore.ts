@@ -6,6 +6,7 @@ import { isOfflineError } from "@/utils/networkUtils";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import useNetworkStore from "./networkStore";
 
 interface SuppliesStore {
   // State
@@ -150,10 +151,11 @@ const useSuppliesStore = create<SuppliesStore>()(
 
       smartFetchSupplies: async (userId: string) => {
         const { setLoading, setSupplies, setOnlineStatus, supplies } = get();
+        const isOnline = useNetworkStore.getState().isOnline;
 
         try {
           setLoading(true);
-          setOnlineStatus(true);
+          setOnlineStatus(isOnline);
 
           // Get user's last fetched timestamp
           const userLastFetched =
@@ -173,22 +175,22 @@ const useSuppliesStore = create<SuppliesStore>()(
             );
 
             // Try to initialize metadata, but don't fail if offline
-            try {
-              await MetadataService.initializeSuppliesMetadata();
-              await UserManagementService.updateSuppliesLastFetched(userId);
-              console.log("Metadata initialized successfully");
-            } catch (metadataError) {
-              if (isOfflineError(metadataError)) {
-                console.log(
-                  "Offline mode: Skipping metadata initialization, using local data"
-                );
-              } else {
+            if (isOnline) {
+              try {
+                await MetadataService.initializeSuppliesMetadata();
+                await UserManagementService.updateSuppliesLastFetched(userId);
+                console.log("Metadata initialized successfully");
+              } catch (metadataError) {
                 console.warn("Failed to initialize metadata:", metadataError);
               }
+            } else {
+              console.log(
+                "Offline mode: Skipping metadata initialization, using local data"
+              );
             }
 
             console.log("Using persisted data - no fetch needed");
-            setLoading(false); // Ensure loading is stopped when using cached data
+            setLoading(false);
             return;
           }
 
@@ -200,45 +202,44 @@ const useSuppliesStore = create<SuppliesStore>()(
 
           // Only fetch if we need refresh OR have no local data
           if (needsRefresh || !hasLocalData) {
-            try {
-              console.log("Fetching fresh supplies data from Firestore...");
+            if (isOnline) {
+              try {
+                console.log("Fetching fresh supplies data from Firestore...");
 
-              // Fetch fresh data from Firestore
-              const freshSupplies =
-                await SuppliesFirestoreService.fetchAllSupplies();
+                // Fetch fresh data from Firestore
+                const freshSupplies =
+                  await SuppliesFirestoreService.fetchAllSupplies();
 
-              // Update local data
-              setSupplies(freshSupplies);
+                // Update local data
+                setSupplies(freshSupplies);
 
-              // Update user's last fetched timestamp
-              await UserManagementService.updateSuppliesLastFetched(userId);
+                // Update user's last fetched timestamp
+                await UserManagementService.updateSuppliesLastFetched(userId);
 
-              console.log(
-                `Fetched ${freshSupplies.length} supplies from Firestore - data refreshed`
-              );
-            } catch (fetchError) {
-              if (isOfflineError(fetchError)) {
                 console.log(
-                  "Offline mode: Cannot fetch, using local data if available"
+                  `Fetched ${freshSupplies.length} supplies from Firestore - data refreshed`
                 );
-                setOnlineStatus(false);
-
+              } catch (fetchError) {
+                console.warn("Failed to fetch supplies:", fetchError);
                 if (hasLocalData) {
-                  console.log("Using cached data in offline mode");
-                  setLoading(false); // Stop loading before return
-                  return; // Keep existing local data
+                  console.log("Using cached data due to fetch error");
                 } else {
-                  console.log("No local data available in offline mode");
-                  // Let it continue to show empty state
+                  throw fetchError;
                 }
+              }
+            } else {
+              console.log(
+                "Offline mode: Cannot fetch, using local data if available"
+              );
+
+              if (hasLocalData) {
+                console.log("Using cached data in offline mode");
               } else {
-                throw fetchError; // Re-throw non-offline errors
+                console.log("No local data available in offline mode");
               }
             }
           } else {
             console.log("Using cached supplies data - no refresh needed");
-            // Data is already loaded from persistence, no need to fetch
-            setLoading(false); // Ensure loading is stopped when using cached data
           }
         } catch (error) {
           console.error("Failed to smart fetch supplies:", error);
@@ -253,8 +254,6 @@ const useSuppliesStore = create<SuppliesStore>()(
             } else {
               console.log("No local data available for offline mode");
             }
-            // Important: Stop loading when in offline mode with local data
-            setLoading(false);
           } else {
             // For non-offline errors, try fallback
             setOnlineStatus(false);

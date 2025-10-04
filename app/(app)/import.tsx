@@ -45,6 +45,7 @@ export default function ImportScreen() {
     setLoading,
     getTotalCount,
     fetchFromFirestore,
+    isOnline,
   } = useSuppliesStore();
 
   const first2Items = [
@@ -245,6 +246,15 @@ export default function ImportScreen() {
   );
 
   const handleUploadToFirestore = async () => {
+    if (!isOnline) {
+      Alert.alert(
+        "Offline Mode",
+        "Upload is not available while offline. Please connect to the internet and try again.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     if (!duplicateResult || !user?.email) return;
 
     setLoading(true);
@@ -478,7 +488,9 @@ export default function ImportScreen() {
             icon={PaperPlaneTiltIcon}
             iconProps={{ color: isUploading ? colors.black : colors.white }}
             label={
-              isUploading
+              !isOnline
+                ? "Upload Unavailable - Offline Mode"
+                : isUploading
                 ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} items (${uploadProgress.percentage}%)`
                 : duplicateResult && duplicateResult.totalNew > 0
                 ? `Upload ${duplicateResult.totalNew} New Items to Database`
@@ -487,7 +499,10 @@ export default function ImportScreen() {
             onPress={handleUploadToFirestore}
             loading={isLoading}
             disabled={
-              isLoading || !duplicateResult || duplicateResult.totalNew === 0
+              !isOnline ||
+              isLoading ||
+              !duplicateResult ||
+              duplicateResult.totalNew === 0
             }
           />
         )}
