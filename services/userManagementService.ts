@@ -21,6 +21,7 @@ export interface UserProfile {
   permissions: {
     canEdit: boolean;
     canUpload: boolean;
+    canDelete: boolean;
   };
   isBlocked: boolean;
   createdAt: string;
@@ -90,6 +91,7 @@ class UserManagementService {
           permissions: {
             canEdit: isAdmin, // Admin gets edit permission by default
             canUpload: isAdmin, // Admin gets upload permission by default
+            canDelete: isAdmin, // Admin gets delete permission by default
           },
           isBlocked: false,
           createdAt: now,
@@ -115,7 +117,28 @@ class UserManagementService {
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        return userSnap.data() as UserProfile;
+        const userData = userSnap.data() as any; // Use any to handle migration
+
+        // Ensure permissions object has all required fields (migration for existing users)
+        const permissions = {
+          canEdit: userData.permissions?.canEdit ?? false,
+          canUpload: userData.permissions?.canUpload ?? false,
+          canDelete:
+            userData.permissions?.canDelete ?? userData.role === "admin", // Default to true for admins
+        };
+
+        return {
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          profileImageUrl: userData.profileImageUrl,
+          role: userData.role,
+          permissions,
+          isBlocked: userData.isBlocked ?? false,
+          createdAt: userData.createdAt,
+          updatedAt: userData.updatedAt,
+          lastLoginAt: userData.lastLoginAt,
+        } as UserProfile;
       }
 
       return null;
@@ -136,7 +159,29 @@ class UserManagementService {
 
       const users: UserProfile[] = [];
       querySnapshot.forEach((doc) => {
-        users.push(doc.data() as UserProfile);
+        const userData = doc.data() as any; // Use any to handle migration
+
+        // Ensure permissions object has all required fields (migration for existing users)
+        const permissions = {
+          canEdit: userData.permissions?.canEdit ?? false,
+          canUpload: userData.permissions?.canUpload ?? false,
+          canDelete:
+            userData.permissions?.canDelete ?? userData.role === "admin", // Default to true for admins
+        };
+
+        const user: UserProfile = {
+          uid: userData.uid,
+          email: userData.email,
+          displayName: userData.displayName,
+          profileImageUrl: userData.profileImageUrl,
+          role: userData.role,
+          permissions,
+          isBlocked: userData.isBlocked ?? false,
+          createdAt: userData.createdAt,
+          updatedAt: userData.updatedAt,
+          lastLoginAt: userData.lastLoginAt,
+        };
+        users.push(user);
       });
 
       return users;
@@ -151,7 +196,7 @@ class UserManagementService {
    */
   static async updateUserPermissions(
     uid: string,
-    permissions: { canEdit: boolean; canUpload: boolean }
+    permissions: { canEdit: boolean; canUpload: boolean; canDelete: boolean }
   ): Promise<void> {
     try {
       const userRef = doc(db, this.COLLECTION_NAME, uid);
@@ -287,6 +332,13 @@ class UserManagementService {
    */
   static canUpload(userProfile: UserProfile): boolean {
     return !userProfile.isBlocked && userProfile.permissions.canUpload;
+  }
+
+  /**
+   * Check if user has delete permissions
+   */
+  static canDelete(userProfile: UserProfile): boolean {
+    return !userProfile.isBlocked && userProfile.permissions.canDelete;
   }
 
   /**

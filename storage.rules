@@ -6,8 +6,13 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow admins to read all profile images
-    match /user/images/{allPaths=**} {
+    // Allow authenticated users to read/write supply images
+    match /supplies/images/{productCode}_{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow admins to read all images
+    match /{allPaths=**} {
       allow read: if request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }

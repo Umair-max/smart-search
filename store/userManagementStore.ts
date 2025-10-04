@@ -13,7 +13,7 @@ interface UserManagementState {
   loadUsers: () => Promise<void>;
   updateUserPermissions: (
     uid: string,
-    permissions: { canEdit: boolean; canUpload: boolean }
+    permissions: { canEdit: boolean; canUpload: boolean; canDelete: boolean }
   ) => Promise<void>;
   updateUserBlockStatus: (uid: string, isBlocked: boolean) => Promise<void>;
   refreshUsers: () => Promise<void>;
@@ -56,7 +56,7 @@ export const useUserManagementStore = create<UserManagementState>(
 
     updateUserPermissions: async (
       uid: string,
-      permissions: { canEdit: boolean; canUpload: boolean }
+      permissions: { canEdit: boolean; canUpload: boolean; canDelete: boolean }
     ) => {
       try {
         // Update in Firestore

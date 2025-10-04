@@ -27,7 +27,7 @@ interface UserItemProps {
   currentUserUid: string;
   onUpdatePermissions: (
     uid: string,
-    permissions: { canEdit: boolean; canUpload: boolean }
+    permissions: { canEdit: boolean; canUpload: boolean; canDelete: boolean }
   ) => void;
   onToggleBlock: (uid: string, isBlocked: boolean) => void;
 }
@@ -45,6 +45,7 @@ const UserItem: React.FC<UserItemProps> = ({
     onUpdatePermissions(user.uid, {
       canEdit: value,
       canUpload: user.permissions.canUpload,
+      canDelete: user.permissions.canDelete,
     });
   };
 
@@ -52,6 +53,15 @@ const UserItem: React.FC<UserItemProps> = ({
     onUpdatePermissions(user.uid, {
       canEdit: user.permissions.canEdit,
       canUpload: value,
+      canDelete: user.permissions.canDelete,
+    });
+  };
+
+  const handleDeletePermissionToggle = (value: boolean) => {
+    onUpdatePermissions(user.uid, {
+      canEdit: user.permissions.canEdit,
+      canUpload: user.permissions.canUpload,
+      canDelete: value,
     });
   };
 
@@ -183,6 +193,24 @@ const UserItem: React.FC<UserItemProps> = ({
           </View>
 
           <View style={styles.permissionRow}>
+            <Typo size={14} style={styles.permissionLabel}>
+              Delete Permission
+            </Typo>
+            <Switch
+              value={user.permissions.canDelete}
+              onValueChange={handleDeletePermissionToggle}
+              disabled={user.isBlocked || isCurrentUser}
+              trackColor={{
+                false: colors.lightGray,
+                true: colors.lightPrimary,
+              }}
+              thumbColor={
+                user.permissions.canDelete ? colors.primary : colors.midGray
+              }
+            />
+          </View>
+
+          <View style={styles.permissionRow}>
             <Typo size={14} style={[styles.permissionLabel, styles.blockLabel]}>
               Block User
             </Typo>
@@ -252,7 +280,7 @@ export default function ManagePermissionsScreen() {
 
   const handleUpdatePermissions = async (
     uid: string,
-    permissions: { canEdit: boolean; canUpload: boolean }
+    permissions: { canEdit: boolean; canUpload: boolean; canDelete: boolean }
   ) => {
     try {
       await updateUserPermissions(uid, permissions);

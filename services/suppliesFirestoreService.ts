@@ -11,6 +11,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
+import FirebaseStorageService from "./firebaseStorageService";
 
 export interface FirestoreSupply extends MedicalSupply {
   // Metadata for tracking
@@ -44,6 +45,25 @@ export interface DuplicateCheckResult {
 
 class SuppliesFirestoreService {
   private static readonly COLLECTION_NAME = "medical-supplies";
+
+  /**
+   * Check if a URL is a Firebase Storage URL
+   */
+  private static isFirebaseStorageUrl(url: string): boolean {
+    return (
+      typeof url === "string" && url.includes("firebasestorage.googleapis.com")
+    );
+  }
+
+  /**
+   * Check if a URL is a local file URI
+   */
+  private static isLocalFileUri(url: string): boolean {
+    return (
+      typeof url === "string" &&
+      (url.startsWith("file://") || url.startsWith("data:"))
+    );
+  }
 
   /**
    * Fetch all medical supplies from Firestore
@@ -435,8 +455,92 @@ class SuppliesFirestoreService {
     userEmail: string
   ): Promise<void> {
     try {
+      console.log(`Starting supply update for ${supply.ProductCode}`);
+      console.log(`Supply data:`, {
+        hasImageUrl: supply.hasOwnProperty("imageUrl"),
+        imageUrl: supply.imageUrl,
+        hasExpiryDate: supply.hasOwnProperty("expiryDate"),
+        expiryDate: supply.expiryDate,
+        allKeys: Object.keys(supply),
+      });
+
       const docRef = doc(db, this.COLLECTION_NAME, supply.ProductCode);
       const docSnap = await getDoc(docRef);
+
+      // Get current supply data to check for existing image
+      const currentSupplyData = docSnap.exists()
+        ? (docSnap.data() as FirestoreSupply)
+        : null;
+
+      console.log(`Current supply data:`, {
+        exists: docSnap.exists(),
+        hasImageUrl: currentSupplyData?.imageUrl,
+        currentImageUrl: currentSupplyData?.imageUrl,
+      });
+
+      let finalImageUrl = supply.imageUrl;
+
+      // Handle image upload/deletion
+      if (supply.imageUrl) {
+        if (this.isLocalFileUri(supply.imageUrl)) {
+          // User has provided a new local image - upload it to Firebase Storage
+          console.log(
+            `Uploading new supply image for ${supply.ProductCode}...`
+          );
+          finalImageUrl = await FirebaseStorageService.uploadSupplyImage(
+            supply.ProductCode,
+            supply.imageUrl
+          );
+
+          // Delete old image if it exists and is different
+          if (
+            currentSupplyData?.imageUrl &&
+            currentSupplyData.imageUrl !== finalImageUrl
+          ) {
+            console.log(
+              `Deleting old supply image: ${currentSupplyData.imageUrl}`
+            );
+            try {
+              await FirebaseStorageService.deleteSupplyImage(
+                currentSupplyData.imageUrl
+              );
+              console.log("Old supply image deleted successfully");
+            } catch (deleteError) {
+              console.warn("Failed to delete old supply image:", deleteError);
+              // Don't fail the update if old image deletion fails
+            }
+          }
+        } else if (this.isFirebaseStorageUrl(supply.imageUrl)) {
+          // Image URL is already a Firebase Storage URL, keep it as-is
+          console.log(
+            `Keeping existing Firebase Storage URL for ${supply.ProductCode}`
+          );
+          finalImageUrl = supply.imageUrl;
+        } else {
+          // Invalid image URL format
+          console.warn(
+            `Invalid image URL format for ${supply.ProductCode}: ${supply.imageUrl}`
+          );
+          finalImageUrl = undefined;
+        }
+      } else {
+        // User has removed the image - delete from Firebase Storage
+        if (currentSupplyData?.imageUrl) {
+          console.log(
+            `User removed image, deleting from storage: ${currentSupplyData.imageUrl}`
+          );
+          try {
+            await FirebaseStorageService.deleteSupplyImage(
+              currentSupplyData.imageUrl
+            );
+            console.log("Supply image deleted successfully");
+          } catch (deleteError) {
+            console.warn("Failed to delete supply image:", deleteError);
+            // Don't fail the update if image deletion fails
+          }
+        }
+        finalImageUrl = undefined;
+      }
 
       const supplyData: FirestoreSupply = {
         Store: supply.Store,
@@ -453,22 +557,10 @@ class SuppliesFirestoreService {
           : new Date().toISOString(),
       };
 
-      // Debug: Check what properties exist on the supply object
-      console.log(`Updating ${supply.ProductCode}:`, {
-        hasImageUrl: supply.hasOwnProperty("imageUrl"),
-        imageUrl: supply.imageUrl,
-        hasExpiryDate: supply.hasOwnProperty("expiryDate"),
-        expiryDate: supply.expiryDate,
-        allKeys: Object.keys(supply),
-      });
-
       // Conditionally add imageUrl only if it has a valid value
-      if (supply.imageUrl) {
-        supplyData.imageUrl = supply.imageUrl;
-        console.log(
-          `Added imageUrl for ${supply.ProductCode}:`,
-          supply.imageUrl
-        );
+      if (finalImageUrl) {
+        supplyData.imageUrl = finalImageUrl;
+        console.log(`Added imageUrl for ${supply.ProductCode}:`, finalImageUrl);
       }
 
       // Conditionally add expiryDate only if it has a valid value and exists
@@ -499,8 +591,30 @@ class SuppliesFirestoreService {
    */
   static async deleteSupply(productCode: string): Promise<void> {
     try {
+      // First, get the supply data to check for existing image
       const docRef = doc(db, this.COLLECTION_NAME, productCode);
+      const docSnap = await getDoc(docRef);
+
+      // Delete associated image from Firebase Storage if it exists
+      if (docSnap.exists()) {
+        const supplyData = docSnap.data() as FirestoreSupply;
+        if (supplyData.imageUrl) {
+          console.log(
+            `Deleting supply image for ${productCode}: ${supplyData.imageUrl}`
+          );
+          try {
+            await FirebaseStorageService.deleteSupplyImage(supplyData.imageUrl);
+            console.log("Supply image deleted successfully");
+          } catch (deleteError) {
+            console.warn("Failed to delete supply image:", deleteError);
+            // Don't fail the deletion if image deletion fails
+          }
+        }
+      }
+
+      // Delete the Firestore document
       await deleteDoc(docRef);
+      console.log(`Supply ${productCode} deleted successfully`);
     } catch (error) {
       console.error("Error deleting supply:", error);
       throw new Error("Failed to delete supply");

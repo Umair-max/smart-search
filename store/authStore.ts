@@ -46,6 +46,7 @@ type AuthState = {
   isAdmin: () => boolean;
   canEdit: () => boolean;
   canUpload: () => boolean;
+  canDelete: () => boolean;
   isBlocked: () => boolean;
 };
 
@@ -437,6 +438,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   canUpload: () => {
     const { userProfile } = get();
     return userProfile ? UserManagementService.canUpload(userProfile) : false;
+  },
+
+  canDelete: () => {
+    const { userProfile } = get();
+    return userProfile ? UserManagementService.canDelete(userProfile) : false;
   },
 
   isBlocked: () => {

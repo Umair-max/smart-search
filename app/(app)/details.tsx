@@ -5,7 +5,6 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Dimensions,
-  Image,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -23,13 +22,15 @@ import { radius, spacingX, spacingY, width } from "@/config/spacing";
 import SuppliesFirestoreService from "@/services/suppliesFirestoreService";
 import { useAuthStore } from "@/store/authStore";
 import useSuppliesStore from "@/store/suppliesStore";
+import { normalizeY } from "@/utils/normalize";
+import { Image } from "expo-image";
 
 const { height } = Dimensions.get("window");
 
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
-  const { user, canEdit, isBlocked } = useAuthStore();
-  const { supplies, updateSupply } = useSuppliesStore();
+  const { user, canEdit, isBlocked, isAdmin, canDelete } = useAuthStore();
+  const { supplies, updateSupply, removeSupply } = useSuppliesStore();
 
   // Get product code from params
   const productCode = (params.productCode as string) || "";
@@ -287,6 +288,44 @@ export default function DetailsScreen() {
             setImageUri(item.imageUrl || null);
             setIsEditing(false);
             setHasChanges(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Item",
+      `Are you sure you want to delete "${item.ProductDescription}"? This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log(`Deleting supply: ${item.ProductCode}`);
+              await SuppliesFirestoreService.deleteSupply(item.ProductCode);
+
+              // Remove from local store
+              removeSupply(item.ProductCode);
+
+              Alert.alert("Success", "Item deleted successfully", [
+                {
+                  text: "OK",
+                  onPress: () => router.back(),
+                },
+              ]);
+            } catch (error) {
+              console.error("Error deleting supply:", error);
+              Alert.alert(
+                "Delete Error",
+                `Failed to delete item: ${
+                  error instanceof Error ? error.message : "Unknown error"
+                }`
+              );
+            }
           },
         },
       ]
@@ -577,8 +616,20 @@ export default function DetailsScreen() {
               </Typo>
             </TouchableOpacity>
 
+            {canDelete() && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.deleteButton]}
+                onPress={handleDelete}
+                disabled={isSaving}
+              >
+                <Typo size={16} style={styles.deleteButtonText}>
+                  Delete
+                </Typo>
+              </TouchableOpacity>
+            )}
+
             <AppButton
-              label={isSaving ? "Saving..." : "Save Changes"}
+              label={isSaving ? "Saving.." : "Save"}
               onPress={handleSave}
               loading={isSaving}
               disabled={!hasChanges || isSaving}
@@ -744,7 +795,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-    height: 50,
+    height: normalizeY(45),
     borderRadius: radius._15,
     alignItems: "center",
     justifyContent: "center",
@@ -758,8 +809,16 @@ const styles = StyleSheet.create({
     color: colors.textGray,
     fontWeight: "600",
   },
+  deleteButton: {
+    backgroundColor: colors.error,
+  },
+  deleteButtonText: {
+    color: colors.white,
+    fontWeight: "600",
+  },
   saveButton: {
     flex: 1,
+    height: normalizeY(45),
   },
   datePickerButton: {
     flexDirection: "row",
