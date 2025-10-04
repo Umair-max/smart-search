@@ -4,12 +4,14 @@ import {
   ImageRequireSource,
   ImageStyle,
   Platform,
+  StyleProp,
   StyleSheet,
   TextInput,
   TextInputProps,
   TextStyle,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import Typo from "../components/Typo";
@@ -40,6 +42,7 @@ interface Props extends TextInputProps {
   image?: ImageRequireSource;
   imageStyle?: ImageStyle;
   inputProps?: TextInputProps;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 const Input: React.FC<Props> = ({
@@ -59,6 +62,7 @@ const Input: React.FC<Props> = ({
   image,
   imageStyle,
   inputProps,
+  containerStyle,
 }) => {
   const [passwordVisible, setPasswordVisible] = useState(false);
   useEffect(() => {
@@ -68,7 +72,7 @@ const Input: React.FC<Props> = ({
   }, [password]);
   return (
     <Animated.View
-      style={styles.view}
+      style={[styles.view, containerStyle]}
       key={`${label}-${index}`}
       entering={FadeIn.delay(index * 200).duration(600)}
     >

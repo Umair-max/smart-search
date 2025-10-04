@@ -171,9 +171,7 @@ const useSuppliesStore = create<SuppliesStore>()(
         return supplies.filter(
           (supply) =>
             supply.ProductCode.toLowerCase().includes(searchTerm) ||
-            supply.ProductDescription.toLowerCase().includes(searchTerm) ||
-            supply.Category.toLowerCase().includes(searchTerm) ||
-            supply.StoreName.toLowerCase().includes(searchTerm)
+            supply.ProductDescription.toLowerCase().includes(searchTerm)
         );
       },
 

@@ -119,12 +119,7 @@ function Home() {
 
       {/* Enhanced Search Bar */}
       <View style={styles.searchContainer}>
-        <View
-          style={[
-            styles.searchInputContainer,
-            searchQuery.length > 0 && styles.searchInputActive,
-          ]}
-        >
+        <View style={styles.searchInputContainer}>
           <Ionicons
             name="search-outline"
             size={20}
@@ -133,7 +128,7 @@ function Home() {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by product code, description, or category..."
+            placeholder="Search by product code, description..."
             placeholderTextColor={colors.placeholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -165,7 +160,7 @@ function Home() {
             </Typo>
             {searchQuery.length > 0 && filteredData.length > 0 && (
               <Typo size={12} style={styles.foundText}>
-                Found in product codes, descriptions, and categories
+                Found in product codes and descriptions
               </Typo>
             )}
           </View>
