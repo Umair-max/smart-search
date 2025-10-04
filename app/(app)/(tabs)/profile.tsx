@@ -10,6 +10,7 @@ import {
   AntDesign,
   FontAwesome6,
   Ionicons,
+  MaterialIcons,
   Octicons,
 } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -37,14 +38,6 @@ function ProfileScreen() {
     canUpload,
   } = useAuthStore();
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-
-  const handleImportSupplies = () => {
-    router.push("/(app)/import");
-  };
-
-  const handleManagePermissions = () => {
-    router.push("/(app)/manage-permissions");
-  };
 
   const handleProfileImagePress = () => {
     Alert.alert(
@@ -235,7 +228,16 @@ function ProfileScreen() {
                   <FontAwesome6 name="file-import" size={24} color="black" />
                 }
                 index={0}
-                onPress={handleImportSupplies}
+                onPress={() => router.push("/(app)/import")}
+              />
+            )}
+            {canUpload() && (
+              <Row
+                title={"Add Item"}
+                iconColor={colors.lightPrimary}
+                icon={<MaterialIcons name="note-add" size={26} color="black" />}
+                index={0}
+                onPress={() => router.push("/(app)/add-item")}
               />
             )}
             {isAdmin() && (
@@ -244,7 +246,7 @@ function ProfileScreen() {
                 iconColor={colors.lightPrimary}
                 icon={<Ionicons name="people" size={24} color={"black"} />}
                 index={2}
-                onPress={handleManagePermissions}
+                onPress={() => router.push("/(app)/manage-permissions")}
               />
             )}
           </View>

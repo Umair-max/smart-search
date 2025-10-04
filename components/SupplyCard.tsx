@@ -46,16 +46,20 @@ const SupplyCard: React.FC<SupplyCardProps> = ({
       activeOpacity={0.7}
     >
       <View style={styles.itemHeader}>
-        <View style={styles.codeContainer}>
-          <Typo size={12} style={styles.codeText}>
-            {item.ProductCode}
-          </Typo>
-        </View>
-        <View style={styles.categoryContainer}>
-          <Typo size={11} style={styles.categoryText}>
-            {item.Category}
-          </Typo>
-        </View>
+        {item.ProductCode && (
+          <View style={styles.codeContainer}>
+            <Typo size={12} style={styles.codeText}>
+              {item.ProductCode}
+            </Typo>
+          </View>
+        )}
+        {item.Category && (
+          <View style={styles.categoryContainer}>
+            <Typo size={11} style={styles.categoryText}>
+              {item.Category}
+            </Typo>
+          </View>
+        )}
         {showExpiryStatus && (
           <View
             style={[
@@ -95,17 +99,25 @@ const SupplyCard: React.FC<SupplyCardProps> = ({
       </Typo>
 
       <View style={styles.itemFooter}>
-        <View style={styles.storeInfo}>
-          <Ionicons name="location-outline" size={14} color={colors.textGray} />
-          <Typo size={12} style={styles.storeText} numberOfLines={1}>
-            {item.StoreName}
-          </Typo>
-        </View>
-        <View style={styles.uomContainer}>
-          <Typo size={12} style={styles.uomText}>
-            {item.UOM}
-          </Typo>
-        </View>
+        {item.StoreName && (
+          <View style={styles.storeInfo}>
+            <Ionicons
+              name="location-outline"
+              size={14}
+              color={colors.textGray}
+            />
+            <Typo size={12} style={styles.storeText} numberOfLines={1}>
+              {item.StoreName}
+            </Typo>
+          </View>
+        )}
+        {item.UOM && (
+          <View style={styles.uomContainer}>
+            <Typo size={12} style={styles.uomText}>
+              {item.UOM}
+            </Typo>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
